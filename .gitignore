@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Environment (secrets — dùng .env.example để mẫu biến)
+.env
+!.env.*
+!.env.example
+
+# Logs & runtime
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.idea/
+*.swp
+*.swo
+
+# Optional: bỏ comment nếu muốn commit cấu hình chung cho team
+# .vscode/

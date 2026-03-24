@@ -1,0 +1,28 @@
+export const ErrorMessage = {
+  INVALID_TOKEN: "Invalid token",
+  SESSION_EXPIRED: "Token expired",
+  UNAUTHORIZED: "Unauthorized",
+  INTERNAL_SERVER_ERROR: "Internal server error",
+  SOMETHING_WENT_WRONG: "Something went wrong!",
+};
+
+export const ErrorCode = {
+  INVALID_TOKEN: "INVALID_TOKEN",
+  SESSION_EXPIRED: "SESSION_EXPIRED",
+  UNAUTHORIZED: "UNAUTHORIZED",
+  INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR",
+};
+
+export const StatusCode = {
+  OK: 200,
+  CREATED: 201,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  DOMAIN_ERROR: 422,
+  TOO_MANY_REQUESTS: 429,
+  INTERNAL_SERVER_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503,
+};
