@@ -1,3 +1,5 @@
+import type { Server as HttpServer } from "node:http";
+import http from "node:http";
 import type { Router } from "express";
 import express from "express";
 import cors from "cors";
@@ -56,16 +58,19 @@ export class App {
     };
   }
 
-  start(port: number) {
+  /** Trả về HTTP server để gắn Socket.IO hoặc tài nguyên khác cần `http.Server`. */
+  start(port: number): HttpServer {
     this.app.use(this.prefix, this.router);
     this.app.use(notFoundHandler);
     this.app.use(errorHandler);
-    const server = this.app.listen(port, () => {
+    const server = http.createServer(this.app);
+    server.listen(port, () => {
       console.log(`SERVER RUNNING ON PORT ${port}`);
     });
     process.on("SIGTERM", () => {
       this._cleanup();
       server.close();
     });
+    return server;
   }
 }

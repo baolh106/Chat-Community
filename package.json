@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/baolh106/Chat-Community#readme",
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "axios": "^1.13.6",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
@@ -33,6 +34,7 @@
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "morgan": "^1.10.1",
+    "redis": "^5.11.0",
     "socket.io": "^4.8.3",
     "surrealdb": "^2.0.3"
   },
