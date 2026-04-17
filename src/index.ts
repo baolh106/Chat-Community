@@ -1,56 +1,41 @@
 import "./config/env";
 
-import { surrealConfig } from "./config/database/database";
-import { SurrealDbContext } from "./config/database/surrealDBContext";
-import { connectDB } from "./shared/database/surrealDB.connect";
 import { App } from "./shared/server/server";
+import { port, redisSocketIoKey, redisUrl } from "./config/env";
 import {
-  adminSocketSecret,
-  port,
-  redisSocketIoKey,
-  redisUrl,
-  userSocketSecret,
-} from "./config/env";
-import { UnitOfWorkSurreal } from "./infrastructure/UnitOfWork-SurrealDB";
-import { messageModule } from "./modules/message/presentation/message.module";
-import { eventBusModule } from "./modules/event-bus/presentation/event-bus.module";
-import { MessageCreatedAdminSocketHandler } from "./modules/message/application/handlers/message-created-admin-socket.handler";
-import { MessageAdminSocketNotifier } from "./modules/message/infrastructure/realtime/message-admin-socket.notifier";
-import {
-  setupSocketServer,
-  type AttachSocketServerOptions,
-} from "./modules/socket/presentation/socket.module";
+  setupDatabase,
+  setupModules,
+  setupSocket,
+  setupEventHandlers,
+} from "./bootstrap";
+import type { AttachSocketServerOptions } from "./modules/socket/infrastructure/attach-socket-server";
 
 async function main() {
   const app = new App();
   app.addPrefix("/api");
 
-  const { eventBus } = eventBusModule();
+  // Setup database
+  const { dbContext, uow } = await setupDatabase();
 
-  // Connect DB
-  const db = await connectDB(surrealConfig);
-  const dbContext = new SurrealDbContext(db);
-  const uow = new UnitOfWorkSurreal(dbContext);
+  // Setup modules and route list
+  const { eventBus, routes } = await setupModules(dbContext, uow);
 
-  // Message Router
-  // API Routes
-  app.addRouter(
-    messageModule(dbContext, uow, eventBus).messageApi.api(),
-    "/message",
-  );
+  routes.forEach(({ path, router }) => {
+    app.addRouter(router, path);
+  });
 
+  // Start HTTP server
   const httpServer = app.start(Number(port));
-  const socketOpts: AttachSocketServerOptions = {
-    adminJoinSecret: adminSocketSecret,
-    userJoinSecret: userSocketSecret,
-  };
+
+  // Setup socket server
+  const socketOpts: AttachSocketServerOptions = {};
   if (redisUrl) {
     socketOpts.redisUrl = redisUrl;
     if (redisSocketIoKey.length > 0) {
       socketOpts.redisKey = redisSocketIoKey;
     }
   }
-  const { disposeRedis, socketService } = await setupSocketServer(
+  const { disposeRedis, socketService } = await setupSocket(
     httpServer,
     socketOpts,
   );
@@ -59,19 +44,9 @@ async function main() {
       void disposeRedis();
     });
   }
-  const adminNotifier = new MessageAdminSocketNotifier(socketService);
-  eventBus.register(new MessageCreatedAdminSocketHandler(adminNotifier));
 
-  if (!adminSocketSecret) {
-    console.warn(
-      "[socket] ADMIN_SOCKET_SECRET is empty — admin:join will be rejected until you set it in .env",
-    );
-  }
-  if (!userSocketSecret) {
-    console.warn(
-      "[socket] USER_SOCKET_SECRET is empty — user:join will be rejected until you set it in .env",
-    );
-  }
+  // Register event handlers
+  setupEventHandlers(eventBus, socketService);
 }
 
 main();

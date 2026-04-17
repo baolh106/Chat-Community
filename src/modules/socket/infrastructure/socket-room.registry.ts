@@ -32,8 +32,8 @@ export class SocketRoomJoinRegistry {
   /** Admin vừa join: vào tất cả room user đang online. */
   joinAdminToAllUserRooms(adminSocket: Socket): void {
     const rooms = [...this.connectedUserIds].map((uid) => userRoom(uid));
-    if (rooms.length > 0) {
-      void adminSocket.join(rooms);
+    for (const room of rooms) {
+      void adminSocket.join(room);
     }
   }
 

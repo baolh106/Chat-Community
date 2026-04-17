@@ -23,7 +23,9 @@ export class MessageApplication implements IMessageApplication {
     await this._uow.runInTransaction(async () => {
       await this._messageRepo.insertList(arrMessage);
       await Promise.all(
-        arrMessage.map((m) => this._eventBus.publish(new MessageCreatedEvent(m))),
+        arrMessage.map((m) =>
+          this._eventBus.publish(new MessageCreatedEvent(m)),
+        ),
       );
     });
   }

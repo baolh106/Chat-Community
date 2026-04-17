@@ -1,14 +1,10 @@
-import type { Server } from "socket.io";
-import type { Socket } from "socket.io";
+import type { Server, Socket } from "socket.io";
 import { ADMIN_ROOM, userRoom } from "../domain/room-name";
 import type { SocketSessionData } from "../domain/socket-session.types";
 import { logSocketGateway } from "./socket-gateway.log";
 import type { SocketRoomJoinRegistry } from "./socket-room.registry";
 
-export type SocketGatewayAuthOptions = {
-  adminJoinSecret: string;
-  userJoinSecret: string;
-};
+export type SocketGatewayAuthOptions = object;
 
 /**
  * Đăng ký connection + admin:join / user:join + log [SocketGateway].
@@ -32,13 +28,12 @@ export function registerSocketConnectionGateway(
       });
     });
 
-    s.on("admin:join", (token: unknown) => {
-      const secret = options.adminJoinSecret;
-      if (!secret || token !== secret) {
-        s.emit("admin:join_denied", { ok: false });
+    s.on("admin:join", () => {
+      if (s.data.role !== "admin") {
+        s.emit("admin:join_denied", { ok: false, reason: "unauthorized" });
         logSocketGateway("admin:join denied", {
           socketId: s.id,
-          detail: "invalid_or_missing_secret",
+          detail: "not_admin_role",
         });
         return;
       }
@@ -53,7 +48,7 @@ export function registerSocketConnectionGateway(
 
       logSocketGateway("admin:join ok", {
         socketId: s.id,
-        role: "admin",
+        role: s.data.role || "admin",
         detail: `onlineUsers=${rooms.getOnlineUserIds().length}`,
       });
 
@@ -62,59 +57,43 @@ export function registerSocketConnectionGateway(
       });
     });
 
-    s.on("user:join", (payload: unknown) => {
-      if (!options.userJoinSecret) {
+    s.on("user:join", () => {
+      if (s.data.role !== "user") {
         s.emit("user:join_denied", {
           ok: false,
-          reason: "USER_SOCKET_SECRET not configured",
+          reason: "unauthorized",
         });
         logSocketGateway("user:join denied", {
           socketId: s.id,
-          detail: "USER_SOCKET_SECRET not configured",
-        });
-        return;
-      }
-      if (
-        !payload ||
-        typeof payload !== "object" ||
-        !("userId" in payload) ||
-        !("token" in payload)
-      ) {
-        s.emit("user:join_denied", { ok: false, reason: "invalid_payload" });
-        logSocketGateway("user:join denied", {
-          socketId: s.id,
-          detail: "invalid_payload",
+          detail: "not_user_role",
         });
         return;
       }
-      const { userId, token } = payload as {
-        userId: unknown;
-        token: unknown;
-      };
-      if (
-        typeof userId !== "string" ||
-        userId.length === 0 ||
-        token !== options.userJoinSecret
-      ) {
-        s.emit("user:join_denied", { ok: false, reason: "invalid_token" });
+      const userId = s.data.userId;
+      if (!userId) {
+        s.emit("user:join_denied", {
+          ok: false,
+          reason: "not found user",
+        });
         logSocketGateway("user:join denied", {
           socketId: s.id,
-          detail: "invalid_token",
+          detail: "not_found_user",
         });
         return;
       }
 
-      s.data.role = "user";
-      s.data.userId = userId;
       void s.join(userRoom(userId));
       rooms.registerUserConnected(userId);
 
-      s.emit("user:joined", { ok: true, userId });
+      s.emit("user:joined", {
+        ok: true,
+        userId,
+      });
 
       logSocketGateway("user:join ok", {
         socketId: s.id,
         userId,
-        role: "user",
+        role: s.data.role || "user",
       });
 
       s.once("disconnect", () => {

@@ -1,6 +1,6 @@
 import type { IAdminRealtimeNotifier } from "../../application/ports/admin-realtime.port";
 import type { MessageCreatedPayload } from "../../domain/events/message-created.event";
-import type { ISocketService } from "../../../socket/application/socket.application.interface";
+import type { ISocketApplication } from "../../../socket/application/socket.application.interface";
 
 const MESSAGE_NEW = "message:new";
 
@@ -8,7 +8,7 @@ const MESSAGE_NEW = "message:new";
  * Đẩy realtime tin nhắn mới qua Socket.IO (dùng ISocketService của module socket).
  */
 export class MessageAdminSocketNotifier implements IAdminRealtimeNotifier {
-  constructor(private readonly sockets: ISocketService) {}
+  constructor(private readonly sockets: ISocketApplication) {}
 
   notifyNewMessage(payload: MessageCreatedPayload): void {
     const body = {

@@ -4,6 +4,6 @@ export type AppConfig = {
 
 export function getAppConfig(): AppConfig {
   return {
-    prefix: process.env.APPNAME as string | "chat-community",
+    prefix: process.env.APP_NAME as string | "chat-community",
   };
 }

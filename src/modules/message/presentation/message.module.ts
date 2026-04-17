@@ -13,11 +13,11 @@ export const messageModule = (
 ) => {
   eventBus.register(new MessageCreatedLogHandler());
   const repo = new MessageRepo(pool);
-  const application = new MessageApplication(repo, uow, eventBus);
-  const messageApi = new MessageAPI(application);
+  const messageApp = new MessageApplication(repo, uow, eventBus);
+  const messageApi = new MessageAPI(messageApp);
   return {
     messageApi,
-    application,
+    messageApp,
     repo,
   };
 };

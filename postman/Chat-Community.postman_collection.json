@@ -1,0 +1,200 @@
+{
+  "info": {
+    "name": "Chat Community API + Socket",
+    "description": "Import collection to Postman for HTTP API calls and Socket.IO connection setup.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "2f75944b-6d82-48c5-b6a6-8b2f9e3f88a2"
+  },
+  "item": [
+    {
+      "name": "Auth / Start User Session",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nickname\": \"{{userNickname}}\",\n  \"identifierNumber\": \"{{userId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/start",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "start"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Auth / Admin Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"password\": \"{{adminPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/admin/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "admin",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Auth / End User Session",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/auth/{{userId}}/end",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "{{userId}}",
+            "end"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Message / Insert Single",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Hello from {{userId}} to admin\",\n  \"sender\": \"{{userId}}\",\n  \"receiver\": \"admin\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/message/insert",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "message",
+            "insert"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Message / Insert List",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "[\n  {\n    \"content\": \"Hello from {{userId}} to admin\",\n    \"createdAt\": \"2026-04-17T00:00:00.000Z\",\n    \"sender\": \"{{userId}}\",\n    \"receiver\": \"admin\"\n  }\n]",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/message/insert-list",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "message",
+            "insert-list"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Socket.IO / Connect (WebSocket)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{socketUrl}}/socket.io/?EIO=4&transport=websocket",
+          "host": [
+            "{{socketUrl}}"
+          ],
+          "path": [
+            "socket.io"
+          ],
+          "query": [
+            {
+              "key": "EIO",
+              "value": "4"
+            },
+            {
+              "key": "transport",
+              "value": "websocket"
+            }
+          ]
+        }
+      },
+      "description": "Connects to Socket.IO transport endpoint. Use Postman WebSocket tab to open the connection, then use a Socket.IO client or custom payloads for events."
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3003/api"
+    },
+    {
+      "key": "socketUrl",
+      "value": "ws://localhost:3003"
+    },
+    {
+      "key": "adminPassword",
+      "value": "admin"
+    },
+    {
+      "key": "userId",
+      "value": "user1"
+    },
+    {
+      "key": "userNickname",
+      "value": "user1"
+    }
+  ]
+}

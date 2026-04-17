@@ -1,9 +1,15 @@
 export const ErrorMessage = {
+  TOKEN_REQUIRED: "Token is required",
   INVALID_TOKEN: "Invalid token",
   SESSION_EXPIRED: "Token expired",
   UNAUTHORIZED: "Unauthorized",
   INTERNAL_SERVER_ERROR: "Internal server error",
   SOMETHING_WENT_WRONG: "Something went wrong!",
+
+  // Auth module
+  PASSWORD_REQUIRED: "Password is required",
+  NICKNAME_REQUIRED: "Nickname is required",
+  IDENTIFIER_NUMBER_REQUIRED: "Identifier number is required",
 };
 
 export const ErrorCode = {

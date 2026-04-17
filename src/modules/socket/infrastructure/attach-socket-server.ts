@@ -1,12 +1,11 @@
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
 import { applyRedisSocketAdapter } from "./redis.adapter";
+import { socketAuthMiddleware } from "../middleware/socket.middleware";
 import { registerSocketConnectionGateway } from "./socket-connection.gateway";
 import { SocketRoomJoinRegistry } from "./socket-room.registry";
 
 export type AttachSocketServerOptions = {
-  adminJoinSecret: string;
-  userJoinSecret: string;
   redisUrl?: string;
   redisKey?: string;
 };
@@ -33,23 +32,13 @@ export async function attachSocketServer(
       options.redisKey && options.redisKey.length > 0
         ? options.redisKey
         : "socket.io";
-    disposeRedis = await applyRedisSocketAdapter(
-      io,
-      options.redisUrl,
-      key,
-    );
+    disposeRedis = await applyRedisSocketAdapter(io, options.redisUrl, key);
     console.log("[SocketGateway] redis adapter enabled", { key });
   }
 
   const roomRegistry = new SocketRoomJoinRegistry();
-  registerSocketConnectionGateway(
-    io,
-    {
-      adminJoinSecret: options.adminJoinSecret,
-      userJoinSecret: options.userJoinSecret,
-    },
-    roomRegistry,
-  );
+  io.use(socketAuthMiddleware);
+  registerSocketConnectionGateway(io, {}, roomRegistry);
 
   return disposeRedis ? { io, disposeRedis } : { io };
 }

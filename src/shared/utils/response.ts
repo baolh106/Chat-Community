@@ -17,6 +17,19 @@ export const sendSuccess = (
   });
 };
 
+export const sendFailure = (
+  res: any,
+  message: string,
+  statusCode: number = 400,
+  errorCode: string = ErrorCode.BAD_REQUEST,
+) => {
+  res.status(statusCode).json({
+    success: false,
+    code: errorCode,
+    message,
+  });
+};
+
 export const sendError = (err: AppError, req: Request, res: Response) => {
   const statusCode = err.statusCode || 500;
 

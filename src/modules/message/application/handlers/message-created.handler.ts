@@ -7,9 +7,7 @@ import {
 /**
  * Example subscriber: replace with push/email/socket adapters in infrastructure.
  */
-export class MessageCreatedLogHandler
-  implements IBusEventHandler<MessageCreatedEvent>
-{
+export class MessageCreatedLogHandler implements IBusEventHandler<MessageCreatedEvent> {
   readonly handles = MESSAGE_CREATED_TOPIC;
 
   async handle(event: MessageCreatedEvent): Promise<void> {

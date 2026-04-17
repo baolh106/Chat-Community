@@ -1,3 +1,5 @@
+import type { RoleType } from "../domain/socket-session.types";
+
 const PREFIX = "[SocketGateway]";
 
 export type SocketGatewayLogPayload = {
@@ -5,7 +7,7 @@ export type SocketGatewayLogPayload = {
   /** Có khi socket đã user:join thành công. */
   userId?: string;
   /** Có khi đã xác định role. */
-  role?: "admin" | "user";
+  role?: RoleType;
   /** Lý do disconnect (Socket.IO). */
   reason?: string;
   /** Thông tin thêm (denied reason, v.v.). */

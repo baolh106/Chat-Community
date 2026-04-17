@@ -12,7 +12,7 @@ export {
   type AttachedSocketServer,
 } from "../infrastructure/attach-socket-server";
 
-export type { ISocketService } from "../application/socket.application.interface";
+export type { ISocketApplication } from "../application/socket.application.interface";
 export { ADMIN_ROOM, userRoom } from "../domain/room-name";
 export type { SocketSessionData } from "../domain/socket-session.types";
 export { SocketApplication } from "../application/socket.application";
