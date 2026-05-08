@@ -18,7 +18,10 @@ async function main() {
   const { dbContext, uow } = await setupDatabase();
 
   // Setup modules and route list
-  const { eventBus, routes } = await setupModules(dbContext, uow);
+  const { eventBus, routes, sessionManager, messageApp } = await setupModules(
+    dbContext,
+    uow,
+  );
 
   routes.forEach(({ path, router }) => {
     app.addRouter(router, path);
@@ -38,6 +41,8 @@ async function main() {
   const { disposeRedis, socketService } = await setupSocket(
     httpServer,
     socketOpts,
+    sessionManager,
+    messageApp,
   );
   if (disposeRedis) {
     app.addCleanup(() => {

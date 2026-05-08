@@ -3,7 +3,7 @@ import type { IBusEvent } from "../../../event-bus/domain/bus-event.interface";
 export const MESSAGE_CREATED_TOPIC = "message.created" as const;
 
 export type MessageCreatedPayload = {
-  content: string;
+  content: string | null;
   imageURL?: string;
   createdAt: Date;
   sender: string;

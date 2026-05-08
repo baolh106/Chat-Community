@@ -1,5 +1,5 @@
 import type { MessageCreatedPayload } from "../../domain/events/message-created.event";
 
-export interface IAdminRealtimeNotifier {
+export interface IRealtimeNotifier {
   notifyNewMessage(payload: MessageCreatedPayload): void;
 }

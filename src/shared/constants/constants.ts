@@ -1,0 +1,1 @@
+export const SYSTEM_TYPE = "system" as const;

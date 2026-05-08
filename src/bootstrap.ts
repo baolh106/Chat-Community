@@ -4,9 +4,12 @@ import { UnitOfWorkSurreal } from "./infrastructure/UnitOfWork-SurrealDB";
 import { authModule } from "./modules/auth/presentation/auth.module";
 import type { IEventBus } from "./modules/event-bus/application/event-bus.interface";
 import { eventBusModule } from "./modules/event-bus/presentation/event-bus.module";
-import { MessageCreatedAdminSocketHandler } from "./modules/message/application/handlers/message-created-admin-socket.handler";
+import { SendMessageSocketHandler } from "./modules/message/application/handlers/send-message-socket.handler";
 import { MessageAdminSocketNotifier } from "./modules/message/infrastructure/realtime/message-admin-socket.notifier";
+import { MessageUserSocketNotifier } from "./modules/message/infrastructure/realtime/message-user-socket.notifier";
 import { messageModule } from "./modules/message/presentation/message.module";
+import type { ISessionManager } from "./modules/message/application/session-manager.interface";
+import type { IMessageApplication } from "./modules/message/application/message.application.interface";
 import type { ISocketApplication } from "./modules/socket/application/socket.application.interface";
 import {
   setupSocketServer,
@@ -26,7 +29,11 @@ export async function setupModules(
   uow: UnitOfWorkSurreal,
 ) {
   const { eventBus } = eventBusModule();
-  const messageApi = messageModule(dbContext, uow, eventBus).messageApi;
+  const {
+    messageApi,
+    messageApp,
+    sessionManager,
+  } = messageModule(dbContext, uow, eventBus);
   const authApi = authModule(dbContext).authApi;
 
   const routes = [
@@ -34,16 +41,20 @@ export async function setupModules(
     { path: "/message", router: messageApi.api() },
   ];
 
-  return { eventBus, routes };
+  return { eventBus, routes, sessionManager, messageApp };
 }
 
 export async function setupSocket(
   httpServer: any,
   opts: AttachSocketServerOptions,
+  sessionManager?: ISessionManager,
+  messageApp?: IMessageApplication,
 ) {
   const { disposeRedis, socketService } = await setupSocketServer(
     httpServer,
     opts,
+    sessionManager,
+    messageApp,
   );
   return { disposeRedis, socketService };
 }
@@ -54,5 +65,7 @@ export function setupEventHandlers(
 ) {
   // Register event handlers
   const adminNotifier = new MessageAdminSocketNotifier(socketService);
-  eventBus.register(new MessageCreatedAdminSocketHandler(adminNotifier));
+  const userNotifier = new MessageUserSocketNotifier(socketService);
+  eventBus.register(new SendMessageSocketHandler(adminNotifier));
+  eventBus.register(new SendMessageSocketHandler(userNotifier));
 }

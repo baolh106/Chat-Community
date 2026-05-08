@@ -15,7 +15,7 @@ export class UnitOfWorkSurreal implements IUnitOfWork {
   async runInTransaction<T>(work: () => Promise<T>): Promise<T> {
     const db = this.dbContext.getConnection();
     // Bắt đầu transaction
-    const txn = await db.beginTransaction();
+    await db.query("BEGIN TRANSACTION");
 
     try {
       // Lưu transaction instance vào AsyncLocalStorage
@@ -29,11 +29,11 @@ export class UnitOfWorkSurreal implements IUnitOfWork {
       );
 
       // Commit transaction
-      await txn.commit();
+      await db.query("COMMIT TRANSACTION");
       return result;
     } catch (error) {
       // Rollback transaction
-      await txn.cancel();
+      await db.query("ROLLBACK TRANSACTION");
       throw error;
     }
   }

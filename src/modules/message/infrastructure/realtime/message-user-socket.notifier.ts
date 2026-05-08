@@ -7,7 +7,7 @@ const MESSAGE_NEW = "message:new";
 /**
  * Đẩy realtime tin nhắn mới qua Socket.IO (dùng ISocketService của module socket).
  */
-export class MessageAdminSocketNotifier implements IRealtimeNotifier {
+export class MessageUserSocketNotifier implements IRealtimeNotifier {
   constructor(private readonly sockets: ISocketApplication) {}
 
   notifyNewMessage(payload: MessageCreatedPayload): void {
@@ -18,9 +18,6 @@ export class MessageAdminSocketNotifier implements IRealtimeNotifier {
           ? payload.createdAt.toISOString()
           : payload.createdAt,
     };
-    this.sockets.emitToAdminRoom(MESSAGE_NEW, body);
-    for (const uid of new Set([payload.sender, payload.receiver])) {
-      this.sockets.emitToUserRoleInRoom(uid, MESSAGE_NEW, body);
-    }
+    this.sockets.emitToUser(payload.receiver, MESSAGE_NEW, body);
   }
 }

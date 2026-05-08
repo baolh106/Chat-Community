@@ -22,14 +22,12 @@ export class AuthApplication implements IAuthApplication {
 
   async startUserSession(req: UserSessionStartRequest): Promise<TokenResponse> {
     const nickname = req.nickname?.trim();
-    const identifierNumber = req.identifierNumber?.trim();
-    const userId = `${nickname}_${identifierNumber}`;
+    const userId = `${nickname}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
     const payload = {
       role: ROLE.USER,
       userId,
-      nickname: nickname,
-      identifierNumber: identifierNumber,
+      nickname,
     };
 
     const token = this.jwtAuthService.generateAllToken(payload);

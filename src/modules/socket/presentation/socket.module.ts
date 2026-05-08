@@ -1,4 +1,6 @@
 import type { Server as HttpServer } from "node:http";
+import type { ISessionManager } from "../../message/application/session-manager.interface";
+import type { IMessageApplication } from "../../message/application/message.application.interface";
 import { SocketApplication } from "../application/socket.application";
 import {
   attachSocketServer,
@@ -25,8 +27,15 @@ export type BootstrappedSocket = AttachedSocketServer & {
 export async function setupSocketServer(
   httpServer: HttpServer,
   options: AttachSocketServerOptions,
+  sessionManager?: ISessionManager,
+  messageApplication?: IMessageApplication,
 ): Promise<BootstrappedSocket> {
-  const attached = await attachSocketServer(httpServer, options);
+  const attached = await attachSocketServer(
+    httpServer,
+    options,
+    sessionManager,
+    messageApplication,
+  );
   const socketService = new SocketApplication(attached.io);
   return { ...attached, socketService };
 }

@@ -12,7 +12,7 @@ export class AuthAPI {
   api() {
     const router = Router();
 
-    // Start user session - user enters nickname and identifier number
+    // Start user session - user enters nickname only
     router.post(
       "/start",
       catchAsync(async (req: Request, res: Response) => {
@@ -20,13 +20,6 @@ export class AuthAPI {
 
         if (!payload.nickname || payload.nickname.trim().length === 0) {
           sendFailure(res, ErrorMessage.NICKNAME_REQUIRED);
-        }
-
-        if (
-          !payload.identifierNumber ||
-          payload.identifierNumber.trim().length === 0
-        ) {
-          sendFailure(res, ErrorMessage.IDENTIFIER_NUMBER_REQUIRED);
         }
 
         const result = await this.userSessionApp.startUserSession(payload);

@@ -1,6 +1,5 @@
 export type UserSessionStartRequest = {
   nickname: string;
-  identifierNumber: string;
 };
 
 export type TokenResponse = {

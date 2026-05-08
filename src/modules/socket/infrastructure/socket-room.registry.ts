@@ -38,17 +38,20 @@ export class SocketRoomJoinRegistry {
   }
 
   /** User mở thêm tab / kết nối: tăng ref-count; lần đầu thì đánh dấu online + admin join room. */
-  registerUserConnected(userId: string): void {
+  registerUserConnected(userId: string): boolean {
     const next = (this.userConnectionCount.get(userId) ?? 0) + 1;
     this.userConnectionCount.set(userId, next);
     if (next === 1) {
       this.connectedUserIds.add(userId);
       this.joinAllAdminsToUserRoom(userId);
+      return true;
     }
+
+    return false;
   }
 
   /** Disconnect user: giảm ref-count; hết kết nối thì gỡ user khỏi set + admin leave room. */
-  registerUserDisconnected(userId: string): void {
+  registerUserDisconnected(userId: string): boolean {
     const prev = this.userConnectionCount.get(userId) ?? 0;
     if (prev <= 1) {
       this.userConnectionCount.delete(userId);
@@ -57,8 +60,10 @@ export class SocketRoomJoinRegistry {
       for (const adminSocket of this.adminSockets) {
         void adminSocket.leave(room);
       }
-    } else {
-      this.userConnectionCount.set(userId, prev - 1);
+      return true;
     }
+
+    this.userConnectionCount.set(userId, prev - 1);
+    return false;
   }
 }
