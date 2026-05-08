@@ -1,6 +1,6 @@
 import type { Server as HttpServer } from "node:http";
-import type { ISessionManager } from "../../message/application/session-manager.interface";
-import type { IMessageApplication } from "../../message/application/message.application.interface";
+import type { ISessionManager } from "../../../modules/message/application/session-manager.interface";
+import type { IMessageApplication } from "../../../modules/message/application/message.application.interface";
 import { SocketApplication } from "../application/socket.application";
 import {
   attachSocketServer,

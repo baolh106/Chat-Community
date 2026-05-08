@@ -1,5 +1,5 @@
 import type { MessageCreatedPayload } from "../../domain/events/message-created.event";
-import type { ISocketApplication } from "../../../socket/application/socket.application.interface";
+import type { ISocketApplication } from "../../../../infrastructure/socket/application/socket.application.interface";
 import type { IRealtimeNotifier } from "../../application/ports/realtime.port";
 
 const MESSAGE_NEW = "message:new";

@@ -1,4 +1,4 @@
-import type { IBusEventHandler } from "../../../event-bus/domain/bus-event-handler.interface";
+import type { IBusEventHandler } from "../../../../infrastructure/event-bus/domain/bus-event-handler.interface";
 import {
   MESSAGE_CREATED_TOPIC,
   type MessageCreatedEvent,
@@ -17,5 +17,6 @@ export class SendMessageSocketHandler implements IBusEventHandler<MessageCreated
     );
     // Real-time
     this._realtime.notifyNewMessage(event.payload);
+    // Notify to telegram bot
   }
 }

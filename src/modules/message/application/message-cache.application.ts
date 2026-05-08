@@ -1,4 +1,4 @@
-import type { IEventBusPublisher } from "../../event-bus/application/event-bus-publisher.interface";
+import type { IEventBusPublisher } from "../../../infrastructure/event-bus/application/event-bus-publisher.interface";
 import { MessageCreatedEvent } from "../domain/events/message-created.event";
 import type { IMessageSessionCache } from "../infrastructure/cache/message-session.cache";
 import type { MessageCreate } from "./dtos/param";

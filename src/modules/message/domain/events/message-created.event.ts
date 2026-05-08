@@ -1,4 +1,4 @@
-import type { IBusEvent } from "../../../event-bus/domain/bus-event.interface";
+import type { IBusEvent } from "../../../../infrastructure/event-bus/domain/bus-event.interface";
 
 export const MESSAGE_CREATED_TOPIC = "message.created" as const;
 

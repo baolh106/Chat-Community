@@ -8,7 +8,7 @@ import {
   setupSocket,
   setupEventHandlers,
 } from "./bootstrap";
-import type { AttachSocketServerOptions } from "./modules/socket/infrastructure/attach-socket-server";
+import type { AttachSocketServerOptions } from "./infrastructure/socket/infrastructure/attach-socket-server";
 
 async function main() {
   const app = new App();

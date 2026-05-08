@@ -1,6 +1,6 @@
 import type { SurrealDbContext } from "../../../config/database/surrealDBContext";
 import type { IUnitOfWork } from "../../../infrastructure/IUnitOfWork";
-import type { IEventBus } from "../../event-bus/application/event-bus.interface";
+import type { IEventBus } from "../../../infrastructure/event-bus/application/event-bus.interface";
 import { MessageAPI } from "../api/message";
 import { MessageApplication } from "../application/message.application";
 import { MessageRepo } from "../infrastructure/surreal/message.repo";

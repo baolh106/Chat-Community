@@ -3,9 +3,9 @@ import { ADMIN_ROOM, userRoom } from "../domain/room-name";
 import type { SocketSessionData } from "../domain/socket-session.types";
 import { logSocketGateway } from "./socket-gateway.log";
 import type { SocketRoomJoinRegistry } from "./socket-room.registry";
-import type { ISessionManager } from "../../message/application/session-manager.interface";
-import type { IMessageApplication } from "../../message/application/message.application.interface";
-import type { MessageCreate } from "../../message/application/dtos/param";
+import type { ISessionManager } from "../../../modules/message/application/session-manager.interface";
+import type { IMessageApplication } from "../../../modules/message/application/message.application.interface";
+import type { MessageCreate } from "../../../modules/message/application/dtos/param";
 
 export type SocketGatewayAuthOptions = object;
 

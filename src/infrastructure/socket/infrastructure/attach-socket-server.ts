@@ -4,8 +4,8 @@ import { applyRedisSocketAdapter } from "./redis.adapter";
 import { socketAuthMiddleware } from "../middleware/socket.middleware";
 import { registerSocketConnectionGateway } from "./socket-connection.gateway";
 import { SocketRoomJoinRegistry } from "./socket-room.registry";
-import type { ISessionManager } from "../../message/application/session-manager.interface";
-import type { IMessageApplication } from "../../message/application/message.application.interface";
+import type { ISessionManager } from "../../../modules/message/application/session-manager.interface";
+import type { IMessageApplication } from "../../../modules/message/application/message.application.interface";
 
 export type AttachSocketServerOptions = {
   redisUrl?: string;
