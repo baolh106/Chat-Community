@@ -15,8 +15,6 @@ export class SendMessageSocketHandler implements IBusEventHandler<MessageCreated
     console.log(
       `[event-bus] ${this.handles} ${sender} -> ${receiver}: ${content ? content.slice(0, 80) + (content.length > 80 ? "…" : "") : "<no content>"}`,
     );
-    // Real-time
-    this._realtime.notifyNewMessage(event.payload);
-    // Notify to telegram bot
+    await this._realtime.notifyNewMessage(event.payload);
   }
 }

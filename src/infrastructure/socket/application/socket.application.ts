@@ -18,6 +18,11 @@ export class SocketApplication implements ISocketApplication {
     this.io.to(ADMIN_ROOM).emit(event, data);
   }
 
+  async hasOnlineAdmin(): Promise<boolean> {
+    const sockets = await this.io.in(ADMIN_ROOM).fetchSockets();
+    return sockets.length > 0;
+  }
+
   emitToUserRoleInRoom(userId: string, event: string, data: unknown): void {
     void this.emitToUserRoleInRoomAsync(userId, event, data);
   }

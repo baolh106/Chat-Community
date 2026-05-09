@@ -25,6 +25,7 @@ export async function attachSocketServer(
   options: AttachSocketServerOptions,
   sessionManager?: ISessionManager,
   messageApplication?: IMessageApplication,
+  telegramNotifier?: { notifyUserJoined?: (userId: string, room: string, totalUsers: number) => Promise<void> },
 ): Promise<AttachedSocketServer> {
   const io = new Server(httpServer, {
     cors: { origin: "*" },
@@ -48,6 +49,7 @@ export async function attachSocketServer(
     roomRegistry,
     sessionManager,
     messageApplication,
+    telegramNotifier,
   );
 
   return disposeRedis ? { io, disposeRedis } : { io };

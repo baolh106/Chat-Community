@@ -10,7 +10,7 @@ const MESSAGE_NEW = "message:new";
 export class MessageUserSocketNotifier implements IRealtimeNotifier {
   constructor(private readonly sockets: ISocketApplication) {}
 
-  notifyNewMessage(payload: MessageCreatedPayload): void {
+  async notifyNewMessage(payload: MessageCreatedPayload): Promise<void> {
     const body = {
       ...payload,
       createdAt:

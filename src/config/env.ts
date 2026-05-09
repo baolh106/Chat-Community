@@ -17,6 +17,10 @@ export const redisUrl = (process.env.REDIS_URL ?? "").trim();
 /** Prefix pub/sub Redis cho Socket.IO (mặc định thư viện: `socket.io`). */
 export const redisSocketIoKey = (process.env.REDIS_SOCKET_IO_KEY ?? "").trim();
 
+/** Telegram Bot token và chat id để thông báo admin khi offline. */
+export const telegramBotToken = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
+export const telegramChatId = (process.env.TELEGRAM_CHAT_ID ?? "").trim();
+
 /** RSA Keys cho JWT RS256 signing. */
 export const privateKey = formatKey(process.env.PRIVATE_KEY);
 export const publicKey = formatKey(process.env.PUBLIC_KEY);

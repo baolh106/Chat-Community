@@ -29,12 +29,14 @@ export async function setupSocketServer(
   options: AttachSocketServerOptions,
   sessionManager?: ISessionManager,
   messageApplication?: IMessageApplication,
+  telegramNotifier?: { notifyUserJoined?: (userId: string, room: string, totalUsers: number) => Promise<void> },
 ): Promise<BootstrappedSocket> {
   const attached = await attachSocketServer(
     httpServer,
     options,
     sessionManager,
     messageApplication,
+    telegramNotifier,
   );
   const socketService = new SocketApplication(attached.io);
   return { ...attached, socketService };

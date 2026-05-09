@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { ErrorCode, ErrorMessage } from "../constants/error.constant";
 import type { AppError } from "./error";
+import { createTelegramNotifier } from "../../infrastructure/telegram/infrastructure/telegram.notifier";
+import { getTemplate } from "../../infrastructure/telegram/telegram-templates";
 
 export const sendSuccess = (
   res: any,
@@ -36,7 +38,8 @@ export const sendError = (err: AppError, req: Request, res: Response) => {
   // Log system errors for Admin (500)
   if (!err.isOperational) {
     console.error(" [SYSTEM_CRITICAL_ERROR] ", err);
-    // TODO: Trigger Telegram/Sentry Alert here
+    // Send Telegram alert for critical errors
+    notifyErrorViaTelegram(err, req, statusCode);
   }
 
   res.status(statusCode).json({
@@ -46,3 +49,19 @@ export const sendError = (err: AppError, req: Request, res: Response) => {
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 };
+
+async function notifyErrorViaTelegram(err: AppError, req: Request, statusCode: number): Promise<void> {
+  try {
+    const telegramNotifier = createTelegramNotifier();
+    const { text, parseMode } = getTemplate("errorNotification", {
+      error: err.message,
+      component: "API Error Handler",
+      severity: statusCode >= 500 ? "Critical" : "High",
+      context: `${req.method} ${req.originalUrl}`,
+    });
+    
+    await telegramNotifier.sendMessage(text, { parseMode });
+  } catch (err) {
+    console.error("[TelegramNotification] Failed to send error alert:", err);
+  }
+}

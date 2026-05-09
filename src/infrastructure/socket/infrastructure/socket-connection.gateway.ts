@@ -9,6 +9,14 @@ import type { MessageCreate } from "../../../modules/message/application/dtos/pa
 
 export type SocketGatewayAuthOptions = object;
 
+export type UserJoinedTelegramNotifier = {
+  notifyUserJoined?: (
+    userId: string,
+    room: string,
+    totalUsers: number,
+  ) => Promise<void>;
+};
+
 /**
  * Đăng ký connection + admin:join / user:join + log [SocketGateway].
  */
@@ -18,6 +26,7 @@ export function registerSocketConnectionGateway(
   rooms: SocketRoomJoinRegistry,
   sessionManager?: ISessionManager,
   messageCacheApp?: IMessageApplication,
+  telegramNotifier?: UserJoinedTelegramNotifier,
 ): void {
   io.on("connection", (socket) => {
     const s = socket as Socket & { data: SocketSessionData };
@@ -114,6 +123,14 @@ export function registerSocketConnectionGateway(
           sessionManager?.handleDisconnect(uid);
         }
       });
+
+      if (userCameOnline && telegramNotifier?.notifyUserJoined) {
+        void telegramNotifier.notifyUserJoined(
+          userId,
+          userRoom(userId),
+          rooms.getOnlineUserIds().length,
+        );
+      }
     });
 
     s.on(

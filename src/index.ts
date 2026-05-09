@@ -8,50 +8,60 @@ import {
   setupSocket,
   setupEventHandlers,
 } from "./bootstrap";
+import { telegramModule } from "./infrastructure/telegram/presentation/telegram.module";
 import type { AttachSocketServerOptions } from "./infrastructure/socket/infrastructure/attach-socket-server";
 
 async function main() {
   const app = new App();
   app.addPrefix("/api");
 
-  // Setup database
-  const { dbContext, uow } = await setupDatabase();
+  // TEMP: Skip database setup for telegram testing
+  // const { dbContext, uow } = await setupDatabase();
+  const dbContext = null as any;
+  const uow = null as any;
 
-  // Setup modules and route list
-  const { eventBus, routes, sessionManager, messageApp } = await setupModules(
-    dbContext,
-    uow,
-  );
+  // TEMP: Skip modules setup for telegram testing
+  // const { eventBus, routes, sessionManager, messageApp } = await setupModules(
+  //   dbContext,
+  //   uow,
+  // );
+  const eventBus = null as any;
+  const routes = [];
+  const sessionManager = null as any;
+  const messageApp = null as any;
 
-  routes.forEach(({ path, router }) => {
-    app.addRouter(router, path);
-  });
+  // TEMP: Skip routes for telegram testing
+  // routes.forEach(({ path, router }) => {
+  //   app.addRouter(router, path);
+  // });
 
   // Start HTTP server
   const httpServer = app.start(Number(port));
 
-  // Setup socket server
-  const socketOpts: AttachSocketServerOptions = {};
-  if (redisUrl) {
-    socketOpts.redisUrl = redisUrl;
-    if (redisSocketIoKey.length > 0) {
-      socketOpts.redisKey = redisSocketIoKey;
-    }
-  }
-  const { disposeRedis, socketService } = await setupSocket(
-    httpServer,
-    socketOpts,
-    sessionManager,
-    messageApp,
-  );
-  if (disposeRedis) {
-    app.addCleanup(() => {
-      void disposeRedis();
-    });
-  }
+  // TEMP: Skip socket setup for telegram testing
+  // const { disposeRedis, socketService } = await setupSocket(
+  //   httpServer,
+  //   socketOpts,
+  //   sessionManager,
+  //   messageApp,
+  // );
+  const disposeRedis = null;
+  const socketService = null as any;
 
-  // Register event handlers
-  setupEventHandlers(eventBus, socketService);
+  // TEMP: Skip cleanup for telegram testing
+  // if (disposeRedis) {
+  //   app.addCleanup(() => {
+  //     void disposeRedis();
+  //   });
+  // }
+
+  const { telegramNotifier, telegramBotListener } = telegramModule();
+
+  // TEMP: Skip event handlers for telegram testing
+  // setupEventHandlers(eventBus, socketService, telegramNotifier);
+
+  void telegramBotListener.start();
+  console.log("Server started with telegram module only");
 }
 
 main();
