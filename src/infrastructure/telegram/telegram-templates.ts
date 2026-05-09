@@ -158,6 +158,20 @@ export const telegramTemplates: Record<string, MessageTemplate> = {
       return `🎁 <b>${title}</b> 🎁\n\n🌟 ${description}\n🔗 Check it out: ${link}\n\n⚡ Don't miss out!`;
     },
   },
+
+  votingPollCreated: {
+    title: "Voting Poll Created",
+    description: "Thông báo tạo một bình chọn/poll",
+    parseMode: "HTML",
+    template: (data = {}) => {
+      const username = escapeHtml(String(data.username || "Unknown User"));
+      const userId = escapeHtml(String(data.userId || "Unknown"));
+      const question = escapeHtml(String(data.question || "What is your opinion?"));
+      const chatId = escapeHtml(String(data.chatId || "Unknown"));
+
+      return `✅ <b>Voting Poll Created!</b>\n\n📊 Question: ${question}\n👤 Created by: ${username}\n🆔 User ID: <span class="tg-spoiler">${userId}</span>\n🏠 Chat ID: <span class="tg-spoiler">${chatId}</span>\n\n📢 Poll has been created in the chat!`;
+    },
+  },
 };
 
 export function getTemplate(name: string, data?: Record<string, string | number>) {
