@@ -1,4 +1,3 @@
-import type { ISocketApplication } from "../../../../infrastructure/socket/application/socket.application.interface";
 import type { ITelegramNotifier } from "../../../../infrastructure/telegram/application/telegram.notifier.interface";
 import { getTemplate } from "../../../../infrastructure/telegram/telegram-templates";
 import type { IToolNotifier } from "../../application/ports/tool.port";
@@ -23,7 +22,6 @@ export class UserJoinedTelegramNotifier implements IToolNotifier {
 
     const { text, parseMode } = getTemplate("userJoined", {
       username: payload.userId,
-      room: payload.room,
       totalUsers: payload.totalUsers,
     });
 

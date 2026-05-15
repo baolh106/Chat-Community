@@ -19,8 +19,8 @@ export class MessageAdminSocketNotifier implements IRealtimeNotifier {
           : payload.createdAt,
     };
     this.sockets.emitToAdminRoom(MESSAGE_NEW, body);
-    for (const uid of new Set([payload.sender, payload.receiver])) {
-      this.sockets.emitToUserRoleInRoom(uid, MESSAGE_NEW, body);
-    }
+    // for (const uid of new Set([payload.sender, payload.receiver])) {
+    //   this.sockets.emitToUserRoleInRoom(uid, MESSAGE_NEW, body);
+    // }
   }
 }

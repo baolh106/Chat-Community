@@ -6,6 +6,8 @@ import type { SocketRoomJoinRegistry } from "./socket-room.registry";
 import type { ISessionManager } from "../../../modules/message/application/session-manager.interface";
 import type { IMessageApplication } from "../../../modules/message/application/message.application.interface";
 import type { MessageCreate } from "../../../modules/message/application/dtos/param";
+import type { IEventBusPublisher } from "../../event-bus/application/event-bus-publisher.interface";
+import { UserJoinedEvent } from "../../../modules/auth/domain/events/user-joined.event";
 
 export type SocketGatewayAuthOptions = object;
 
@@ -22,11 +24,10 @@ export type UserJoinedTelegramNotifier = {
  */
 export function registerSocketConnectionGateway(
   io: Server,
-  options: SocketGatewayAuthOptions,
   rooms: SocketRoomJoinRegistry,
   sessionManager?: ISessionManager,
   messageCacheApp?: IMessageApplication,
-  telegramNotifier?: UserJoinedTelegramNotifier,
+  eventBus?: IEventBusPublisher,
 ): void {
   io.on("connection", (socket) => {
     const s = socket as Socket & { data: SocketSessionData };
@@ -42,7 +43,7 @@ export function registerSocketConnectionGateway(
       });
     });
 
-    s.on("admin:join", () => {
+    s.on("admin:join", async () => {
       if (s.data.role !== "admin") {
         s.emit("admin:join_denied", { ok: false, reason: "unauthorized" });
         logSocketGateway("admin:join denied", {
@@ -52,13 +53,26 @@ export function registerSocketConnectionGateway(
         return;
       }
 
+      const onlineUserIds = rooms.getOnlineUserIds();
+      const history: Record<string, MessageCreate[]> = {};
+
+      // Lấy tin nhắn cũ từ cache cho tất cả user đang online
+      if (messageCacheApp) {
+        await Promise.all(
+          onlineUserIds.map(async (uid) => {
+            history[uid] = await messageCacheApp.getMessagesByUserId(uid);
+          })
+        );
+      }
+
       s.data.role = "admin";
       void s.join(ADMIN_ROOM);
       rooms.joinAdminToAllUserRooms(s);
       rooms.addAdmin(s);
       s.emit("admin:joined", {
         ok: true,
-        userIds: rooms.getOnlineUserIds(),
+        userIds: onlineUserIds,
+        history,
       });
 
       logSocketGateway("admin:join ok", {
@@ -123,13 +137,13 @@ export function registerSocketConnectionGateway(
           sessionManager?.handleDisconnect(uid);
         }
       });
-
-      if (userCameOnline && telegramNotifier?.notifyUserJoined) {
-        void telegramNotifier.notifyUserJoined(
+      console.log(`usercameonline=${userCameOnline} totalOnline=${rooms.getOnlineUserIds().length} and eventBus=${!!eventBus}`);
+      if (userCameOnline && eventBus) {
+        console.log(`[socket-gateway] publish event ${UserJoinedEvent.name} for user: ${rooms.getOnlineUserIds().length} online`);
+        void eventBus.publish(new UserJoinedEvent({
           userId,
-          userRoom(userId),
-          rooms.getOnlineUserIds().length,
-        );
+          totalUsers: rooms.getOnlineUserIds().length,
+        }));
       }
     });
 
@@ -140,8 +154,10 @@ export function registerSocketConnectionGateway(
         imageURL?: string;
         receiver: string;
       }) => {
-        const userId = s.data.userId;
-        if (!userId || s.data.role !== "user") {
+        const { role, userId } = s.data;
+        const senderId = role === "admin" ? "admin" : userId;
+
+        if (!role || (role === "user" && !userId)) {
           s.emit("message:error", {
             ok: false,
             reason: "unauthorized",
@@ -166,7 +182,7 @@ export function registerSocketConnectionGateway(
         }
 
         const message: MessageCreate = {
-          sender: userId,
+          sender: senderId as string,
           receiver: payload.receiver,
           content: payload.content,
           createdAt: new Date(),
@@ -175,7 +191,6 @@ export function registerSocketConnectionGateway(
 
         try {
           await messageCacheApp.create(message);
-          s.emit("message:sent", { ok: true });
         } catch (error: unknown) {
           s.emit("message:error", {
             ok: false,

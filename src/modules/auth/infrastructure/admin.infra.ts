@@ -9,12 +9,11 @@ export class AdminInfrastructure {
   async verifyPassword(password: string): Promise<boolean> {
     const result = await this.pool
       .getDB()
-      .select<TAdmin>(new Table("admin"))
+      .select(new Table("admin"))
       .value("password");
 
-    console.log("result", result);
-    const passwordAdmin = result[0]?.password || "";
-    return await this.comparePassword(passwordAdmin, password);
+    const passwordHash = (result[0] as any) || "";
+    return await this.comparePassword(password, passwordHash);
   }
 
   async comparePassword(

@@ -39,7 +39,7 @@ export async function setupModules(
     messageApp,
     sessionManager,
   } = messageModule(dbContext, uow, eventBus);
-  const authApi = authModule(dbContext).authApi;
+  const authApi = authModule(dbContext, eventBus).authApi;
 
   const routes = [
     { path: "/auth", router: authApi.api() },
@@ -54,14 +54,14 @@ export async function setupSocket(
   opts: AttachSocketServerOptions,
   sessionManager?: ISessionManager,
   messageApp?: IMessageApplication,
-  telegramNotifier?: { notifyUserJoined?: (userId: string, room: string, totalUsers: number) => Promise<void> },
+  eventBus?: IEventBus,
 ) {
   const { disposeRedis, socketService } = await setupSocketServer(
     httpServer,
     opts,
     sessionManager,
     messageApp,
-    telegramNotifier,
+    eventBus,
   );
   return { disposeRedis, socketService };
 }

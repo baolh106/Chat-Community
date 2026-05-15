@@ -12,8 +12,9 @@ export class SendMessageSocketHandler implements IBusEventHandler<MessageCreated
 
   async handle(event: MessageCreatedEvent): Promise<void> {
     const { sender, receiver, content } = event.payload;
+    const notifierName = this._realtime.constructor.name;
     console.log(
-      `[event-bus] ${this.handles} ${sender} -> ${receiver}: ${content ? content.slice(0, 80) + (content.length > 80 ? "…" : "") : "<no content>"}`,
+      `[event-bus][${notifierName}] ${this.handles} ${sender} -> ${receiver}: ${content ? content.slice(0, 80) + (content.length > 80 ? "…" : "") : "<no content>"}`,
     );
     await this._realtime.notifyNewMessage(event.payload);
   }

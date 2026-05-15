@@ -15,53 +15,44 @@ async function main() {
   const app = new App();
   app.addPrefix("/api");
 
-  // TEMP: Skip database setup for telegram testing
-  // const { dbContext, uow } = await setupDatabase();
-  const dbContext = null as any;
-  const uow = null as any;
+  const { dbContext, uow } = await setupDatabase();
+  const { eventBus, routes, sessionManager, messageApp } = await setupModules(
+    dbContext,
+    uow,
+  );
 
-  // TEMP: Skip modules setup for telegram testing
-  // const { eventBus, routes, sessionManager, messageApp } = await setupModules(
-  //   dbContext,
-  //   uow,
-  // );
-  const eventBus = null as any;
-  const routes = [];
-  const sessionManager = null as any;
-  const messageApp = null as any;
+  routes.forEach(({ path, router }) => {
+    app.addRouter(router, path);
+  });
 
-  // TEMP: Skip routes for telegram testing
-  // routes.forEach(({ path, router }) => {
-  //   app.addRouter(router, path);
-  // });
-
-  // Start HTTP server
   const httpServer = app.start(Number(port));
 
-  // TEMP: Skip socket setup for telegram testing
-  // const { disposeRedis, socketService } = await setupSocket(
-  //   httpServer,
-  //   socketOpts,
-  //   sessionManager,
-  //   messageApp,
-  // );
-  const disposeRedis = null;
-  const socketService = null as any;
+  const socketOpts: AttachSocketServerOptions = {
+    redisUrl,
+    redisKey: redisSocketIoKey,
+  };
+  const { disposeRedis, socketService } = await setupSocket(
+    httpServer,
+    socketOpts,
+    sessionManager,
+    messageApp,
+    eventBus,
+  );
 
-  // TEMP: Skip cleanup for telegram testing
-  // if (disposeRedis) {
-  //   app.addCleanup(() => {
-  //     void disposeRedis();
-  //   });
-  // }
+  if (disposeRedis) {
+    app.addCleanup(() => {
+      void disposeRedis();
+    });
+  }
 
   const { telegramNotifier, telegramBotListener } = telegramModule();
-
-  // TEMP: Skip event handlers for telegram testing
-  // setupEventHandlers(eventBus, socketService, telegramNotifier);
+  setupEventHandlers(eventBus, socketService, telegramNotifier);
 
   void telegramBotListener.start();
-  console.log("Server started with telegram module only");
+  console.log("Server started with database, socket and telegram modules");
 }
 
-main();
+main().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
+});

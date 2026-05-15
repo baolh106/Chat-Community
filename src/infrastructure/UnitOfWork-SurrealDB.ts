@@ -33,7 +33,7 @@ export class UnitOfWorkSurreal implements IUnitOfWork {
       return result;
     } catch (error) {
       // Rollback transaction
-      await db.query("ROLLBACK TRANSACTION");
+      await db.query("CANCEL TRANSACTION");
       throw error;
     }
   }

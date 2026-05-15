@@ -13,16 +13,19 @@ import type {
   UserSessionStartRequest,
 } from "./dtos/user-session.dto";
 import type { IAuthApplication } from "./auth.application.interface";
+import { UserJoinedEvent } from "../domain/events/user-joined.event";
+import type { IEventBusPublisher } from "../../../infrastructure/event-bus/application/event-bus-publisher.interface";
 
 export class AuthApplication implements IAuthApplication {
   constructor(
     private readonly adminInfra: AdminInfrastructure,
     private readonly jwtAuthService: JwtAuthService,
+    private readonly eventBus: IEventBusPublisher,
   ) {}
 
   async startUserSession(req: UserSessionStartRequest): Promise<TokenResponse> {
     const nickname = req.nickname?.trim();
-    const userId = `${nickname}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const userId = `${nickname}_${Date.now()}`;
 
     const payload = {
       role: ROLE.USER,

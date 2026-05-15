@@ -6,6 +6,7 @@ import { registerSocketConnectionGateway } from "./socket-connection.gateway";
 import { SocketRoomJoinRegistry } from "./socket-room.registry";
 import type { ISessionManager } from "../../../modules/message/application/session-manager.interface";
 import type { IMessageApplication } from "../../../modules/message/application/message.application.interface";
+import type { IEventBusPublisher } from "../../event-bus/application/event-bus-publisher.interface";
 
 export type AttachSocketServerOptions = {
   redisUrl?: string;
@@ -25,7 +26,7 @@ export async function attachSocketServer(
   options: AttachSocketServerOptions,
   sessionManager?: ISessionManager,
   messageApplication?: IMessageApplication,
-  telegramNotifier?: { notifyUserJoined?: (userId: string, room: string, totalUsers: number) => Promise<void> },
+  eventBus?: IEventBusPublisher,
 ): Promise<AttachedSocketServer> {
   const io = new Server(httpServer, {
     cors: { origin: "*" },
@@ -45,11 +46,10 @@ export async function attachSocketServer(
   io.use(socketAuthMiddleware);
   registerSocketConnectionGateway(
     io,
-    {},
     roomRegistry,
     sessionManager,
     messageApplication,
-    telegramNotifier,
+    eventBus,
   );
 
   return disposeRedis ? { io, disposeRedis } : { io };

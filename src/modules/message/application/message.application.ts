@@ -16,7 +16,8 @@ export class MessageApplication implements IMessageApplication {
 
   public async create(message: MessageCreate) {
     if (this._sessionCache) {
-      await this._sessionCache.appendMessage(message.sender, message);
+      const conversationKey = message.sender === "admin" ? message.receiver : message.sender;
+      await this._sessionCache.appendMessage(conversationKey, message);
       await this._eventBus.publish(new MessageCreatedEvent(message));
       return;
     }
@@ -29,15 +30,16 @@ export class MessageApplication implements IMessageApplication {
 
   public async insertList(arrMessage: MessageCreate[]) {
     if (this._sessionCache) {
-      const groupedBySender = new Map<string, MessageCreate[]>();
+      const groupedByConversation = new Map<string, MessageCreate[]>();
       for (const message of arrMessage) {
-        const group = groupedBySender.get(message.sender) ?? [];
+        const key = message.sender === "admin" ? message.receiver : message.sender;
+        const group = groupedByConversation.get(key) ?? [];
         group.push(message);
-        groupedBySender.set(message.sender, group);
+        groupedByConversation.set(key, group);
       }
 
-      for (const [sender, messages] of groupedBySender.entries()) {
-        await this._sessionCache.appendMessages(sender, messages);
+      for (const [conversationKey, messages] of groupedByConversation.entries()) {
+        await this._sessionCache.appendMessages(conversationKey, messages);
       }
 
       await Promise.all(
@@ -56,5 +58,12 @@ export class MessageApplication implements IMessageApplication {
         ),
       );
     });
+  }
+
+  public async getMessagesByUserId(userId: string): Promise<MessageCreate[]> {
+    if (this._sessionCache) {
+      return await this._sessionCache.getMessages(userId);
+    }
+    return [];
   }
 }

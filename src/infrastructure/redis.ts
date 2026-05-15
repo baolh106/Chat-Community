@@ -108,6 +108,11 @@ export class RedisClient {
       return null;
     }
   }
+
+  async keys(pattern: string): Promise<string[]> {
+    await this.connect();
+    return this.client.keys(pattern);
+  }
 }
 
 export const redisClient = new RedisClient();

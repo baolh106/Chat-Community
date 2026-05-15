@@ -4,7 +4,6 @@ export const USER_JOINED_TOPIC = "user.joined" as const;
 
 export type UserJoinedPayload = {
   userId: string;
-  room: string;
   totalUsers: number;
 };
 

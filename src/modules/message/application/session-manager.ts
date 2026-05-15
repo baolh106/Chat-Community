@@ -2,6 +2,8 @@ import type { IMessageRepository } from "../domain/mesage.repository";
 import type { IMessageSessionCache } from "../infrastructure/cache/message-session.cache";
 import type { ISessionManager } from "./session-manager.interface";
 import { MessageSession } from "../constant/constant";
+import { redisClient } from "../../../infrastructure/redis";
+import { CACHE_PREFIX } from "../../auth/constants/constant";
 
 export class SessionManager implements ISessionManager {
   private disconnectTimer: Map<string, NodeJS.Timeout> = new Map();
@@ -32,11 +34,15 @@ export class SessionManager implements ISessionManager {
     this.cancelPendingTimer(userId);
     const messages = await this.messageSessionCache.getMessages(userId);
     if (messages.length === 0) {
+      // Nếu không có tin nhắn nào trong cache, vẫn cần xóa refresh token
+      await redisClient.del(`${CACHE_PREFIX.REFRESH_TOKEN}:${userId}`);
       return;
     }
 
     await this.messageRepository.insertList(messages);
     await this.messageSessionCache.deleteMessages(userId);
+    // Xóa refresh token của user khi session bị finalize
+    await redisClient.del(`${CACHE_PREFIX.REFRESH_TOKEN}:${userId}`);
   }
 
   private cancelPendingTimer(userId: string): void {
