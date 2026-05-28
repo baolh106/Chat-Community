@@ -14,8 +14,15 @@ export class MessageRepo implements IMessageRepository {
       .getDB()
       .create<TMessage>(userId)
       .content({
-        content: payload.content,
+        content: payload.content ?? null,
         imageURL: payload?.imageURL ?? null,
+        fileURL: payload?.fileURL ?? null,
+        fileDownloadURL: payload?.fileDownloadURL ?? null,
+        fileName: payload?.fileName ?? null,
+        fileMimeType: payload?.fileMimeType ?? null,
+        fileSize: payload?.fileSize ?? null,
+        fileDriveId: payload?.fileDriveId ?? null,
+        attachmentType: payload?.attachmentType ?? null,
         createdAt: new Date(),
         sender: payload.sender,
         receiver: payload.receiver,
@@ -32,8 +39,15 @@ export class MessageRepo implements IMessageRepository {
       .insert(
         new Table("messages"),
         payload.map((m) => ({
-          content: m.content,
+          content: m.content ?? null,
           imageURL: m?.imageURL ?? null,
+          fileURL: m?.fileURL ?? null,
+          fileDownloadURL: m?.fileDownloadURL ?? null,
+          fileName: m?.fileName ?? null,
+          fileMimeType: m?.fileMimeType ?? null,
+          fileSize: m?.fileSize ?? null,
+          fileDriveId: m?.fileDriveId ?? null,
+          attachmentType: m?.attachmentType ?? null,
           createdAt: m.createdAt,
           sender: m.sender,
           receiver: m.receiver,

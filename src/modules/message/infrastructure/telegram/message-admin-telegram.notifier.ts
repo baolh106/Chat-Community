@@ -34,6 +34,9 @@ export class MessageAdminTelegramNotifier implements IToolNotifier {
         receiver: body.receiver,
         content: body.content ?? "<no content>",
         createdAt: body.createdAt,
+        attachmentType: body.attachmentType,
+        fileName: body.fileName,
+        fileURL: body.fileURL,
       });
       await this.telegramNotifier.sendMessage(text, { parseMode });
     }

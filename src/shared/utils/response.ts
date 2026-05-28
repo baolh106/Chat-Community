@@ -3,6 +3,7 @@ import { ErrorCode, ErrorMessage } from "../constants/error.constant";
 import type { AppError } from "./error";
 import { createTelegramNotifier } from "../../infrastructure/telegram/infrastructure/telegram.notifier";
 import { getTemplate } from "../../infrastructure/telegram/telegram-templates";
+import { withRetry } from "./retry";
 
 export const sendSuccess = (
   res: any,
@@ -60,7 +61,9 @@ async function notifyErrorViaTelegram(err: AppError, req: Request, statusCode: n
       context: `${req.method} ${req.originalUrl}`,
     });
     
-    await telegramNotifier.sendMessage(text, { parseMode });
+    await withRetry(() => 
+      telegramNotifier.sendMessage(text, { parseMode })
+    , 2, 500);
   } catch (err) {
     console.error("[TelegramNotification] Failed to send error alert:", err);
   }

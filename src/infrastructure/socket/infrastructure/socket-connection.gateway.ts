@@ -8,6 +8,7 @@ import type { IMessageApplication } from "../../../modules/message/application/m
 import type { MessageCreate } from "../../../modules/message/application/dtos/param";
 import type { IEventBusPublisher } from "../../event-bus/application/event-bus-publisher.interface";
 import { UserJoinedEvent } from "../../../modules/auth/domain/events/user-joined.event";
+import { uploadMaxFileSizeMb } from "../../../config/env";
 
 export type SocketGatewayAuthOptions = object;
 
@@ -61,7 +62,7 @@ export function registerSocketConnectionGateway(
         await Promise.all(
           onlineUserIds.map(async (uid) => {
             history[uid] = await messageCacheApp.getMessagesByUserId(uid);
-          })
+          }),
         );
       }
 
@@ -137,21 +138,33 @@ export function registerSocketConnectionGateway(
           sessionManager?.handleDisconnect(uid);
         }
       });
-      console.log(`usercameonline=${userCameOnline} totalOnline=${rooms.getOnlineUserIds().length} and eventBus=${!!eventBus}`);
+      console.log(
+        `usercameonline=${userCameOnline} totalOnline=${rooms.getOnlineUserIds().length} and eventBus=${!!eventBus}`,
+      );
       if (userCameOnline && eventBus) {
-        console.log(`[socket-gateway] publish event ${UserJoinedEvent.name} for user: ${rooms.getOnlineUserIds().length} online`);
-        void eventBus.publish(new UserJoinedEvent({
-          userId,
-          totalUsers: rooms.getOnlineUserIds().length,
-        }));
+        console.log(
+          `[socket-gateway] publish event ${UserJoinedEvent.name} for user: ${rooms.getOnlineUserIds().length} online`,
+        );
+        void eventBus.publish(
+          new UserJoinedEvent({
+            userId,
+            totalUsers: rooms.getOnlineUserIds().length,
+          }),
+        );
       }
     });
 
     s.on(
       "message:send",
       async (payload: {
-        content: string;
+        content?: string | null;
         imageURL?: string;
+        fileURL?: string;
+        file?: {
+          data: string;
+          name: string;
+          mimeType: string;
+        };
         receiver: string;
       }) => {
         const { role, userId } = s.data;
@@ -173,7 +186,7 @@ export function registerSocketConnectionGateway(
           return;
         }
 
-        if (!payload || typeof payload.receiver !== "string" || typeof payload.content !== "string") {
+        if (!payload || typeof payload.receiver !== "string") {
           s.emit("message:error", {
             ok: false,
             reason: "invalid_payload",
@@ -184,20 +197,54 @@ export function registerSocketConnectionGateway(
         const message: MessageCreate = {
           sender: senderId as string,
           receiver: payload.receiver,
-          content: payload.content,
+          content:
+            typeof payload.content === "string" && payload.content.length > 0
+              ? payload.content
+              : null,
           createdAt: new Date(),
           ...(payload.imageURL ? { imageURL: payload.imageURL } : {}),
+          ...(payload.fileURL ? { fileURL: payload.fileURL } : {}),
         };
 
         try {
-          await messageCacheApp.create(message);
+          if (payload.file) {
+            if (
+              typeof payload.file.data !== "string" ||
+              typeof payload.file.name !== "string" ||
+              typeof payload.file.mimeType !== "string"
+            ) {
+              s.emit("message:error", {
+                ok: false,
+                reason: "invalid_file_payload",
+              });
+              return;
+            }
+
+            const base64 = payload.file.data.includes(",")
+              ? payload.file.data.split(",").at(-1)
+              : payload.file.data;
+            const buffer = Buffer.from(base64 ?? "", "base64");
+            if (buffer.length > uploadMaxFileSizeMb * 1024 * 1024) {
+              s.emit("message:error", {
+                ok: false,
+                reason: "file_too_large",
+              });
+              return;
+            }
+
+            await messageCacheApp.createWithFile(message, {
+              buffer,
+              originalName: payload.file.name,
+              mimeType: payload.file.mimeType,
+              size: buffer.length,
+            });
+          } else {
+            await messageCacheApp.create(message);
+          }
         } catch (error: unknown) {
           s.emit("message:error", {
             ok: false,
-            reason:
-              error instanceof Error
-                ? error.message
-                : "unknown_error",
+            reason: error instanceof Error ? error.message : "unknown_error",
           });
         }
       },

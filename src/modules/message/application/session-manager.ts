@@ -4,6 +4,7 @@ import type { ISessionManager } from "./session-manager.interface";
 import { MessageSession } from "../constant/constant";
 import { redisClient } from "../../../infrastructure/redis";
 import { CACHE_PREFIX } from "../../auth/constants/constant";
+import { withRetry } from "../../../shared/utils/retry";
 
 export class SessionManager implements ISessionManager {
   private disconnectTimer: Map<string, NodeJS.Timeout> = new Map();
@@ -39,10 +40,14 @@ export class SessionManager implements ISessionManager {
       return;
     }
 
-    await this.messageRepository.insertList(messages);
-    await this.messageSessionCache.deleteMessages(userId);
-    // Xóa refresh token của user khi session bị finalize
-    await redisClient.del(`${CACHE_PREFIX.REFRESH_TOKEN}:${userId}`);
+    // Thực hiện retry khi lưu vào database chính
+    await withRetry(async () => {
+      await this.messageRepository.insertList(messages);
+      await this.messageSessionCache.deleteMessages(userId);
+      await redisClient.del(`${CACHE_PREFIX.REFRESH_TOKEN}:${userId}`);
+    }, 3, 1000).catch(err => {
+      console.error(`[CRITICAL] Could not finalize session for ${userId} after all retries.`, err);
+    });
   }
 
   private cancelPendingTimer(userId: string): void {

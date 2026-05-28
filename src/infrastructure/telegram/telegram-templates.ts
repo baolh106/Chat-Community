@@ -1,7 +1,7 @@
 export interface MessageTemplate {
   title: string;
   description: string;
-  template: (data?: Record<string, string | number>) => string;
+  template: (data?: Record<string, unknown>) => string;
   parseMode?: "HTML" | "MarkdownV2";
 }
 
@@ -23,7 +23,8 @@ export const telegramTemplates: Record<string, MessageTemplate> = {
     title: "Simple Test",
     description: "Một tin nhắn test đơn giản",
     parseMode: "HTML",
-    template: () => `✅ <b>Test message from Chat-Community</b>\n🕐 ${escapeHtml(new Date().toLocaleString("vi-VN"))}`,
+    template: () =>
+      `✅ <b>Test message from Chat-Community</b>\n🕐 ${escapeHtml(new Date().toLocaleString("vi-VN"))}`,
   },
 
   adminOffline: {
@@ -34,12 +35,17 @@ export const telegramTemplates: Record<string, MessageTemplate> = {
       const sender = escapeHtml(String(data.sender || "Unknown User"));
       const receiver = escapeHtml(String(data.receiver || "Unknown"));
       const content = escapeHtml(String(data.content ?? "<no content>"));
-      const createdAt = escapeHtml(String(data.createdAt || new Date().toISOString()));
+      const createdAt = escapeHtml(
+        String(data.createdAt || new Date().toISOString()),
+      );
       const extra = {
         sender: data.sender ?? "Unknown User",
         receiver: data.receiver ?? "Unknown",
         content: data.content ?? "<no content>",
         createdAt: data.createdAt ?? new Date().toISOString(),
+        ...(data.attachmentType ? { attachmentType: data.attachmentType } : {}),
+        ...(data.fileName ? { fileName: data.fileName } : {}),
+        ...(data.fileURL ? { fileURL: data.fileURL } : {}),
       };
 
       return `📩 <b>New Message Alert</b>\n\n👤 From: ${sender}\n💬 Message: ${content}\n🕐 Time: ${createdAt}\n\n<b>Payload</b>:\n<pre>${formatJson(extra)}</pre>`;
@@ -124,7 +130,9 @@ export const telegramTemplates: Record<string, MessageTemplate> = {
     description: "Báo cáo hàng ngày",
     parseMode: "HTML",
     template: (data = {}) => {
-      const date = escapeHtml(String(data.date || new Date().toLocaleDateString("vi-VN")));
+      const date = escapeHtml(
+        String(data.date || new Date().toLocaleDateString("vi-VN")),
+      );
       const activeUsers = escapeHtml(String(data.activeUsers ?? 0));
       const totalMessages = escapeHtml(String(data.totalMessages ?? 0));
       const newUsers = escapeHtml(String(data.newUsers ?? 0));
@@ -152,8 +160,12 @@ export const telegramTemplates: Record<string, MessageTemplate> = {
     parseMode: "HTML",
     template: (data = {}) => {
       const title = escapeHtml(String(data.title || "Special Offer"));
-      const description = escapeHtml(String(data.description || "Limited time"));
-      const link = escapeHtml(String(data.link || "https://chat-community.com"));
+      const description = escapeHtml(
+        String(data.description || "Limited time"),
+      );
+      const link = escapeHtml(
+        String(data.link || "https://chat-community.com"),
+      );
 
       return `🎁 <b>${title}</b> 🎁\n\n🌟 ${description}\n🔗 Check it out: ${link}\n\n⚡ Don't miss out!`;
     },
@@ -166,7 +178,9 @@ export const telegramTemplates: Record<string, MessageTemplate> = {
     template: (data = {}) => {
       const username = escapeHtml(String(data.username || "Unknown User"));
       const userId = escapeHtml(String(data.userId || "Unknown"));
-      const question = escapeHtml(String(data.question || "What is your opinion?"));
+      const question = escapeHtml(
+        String(data.question || "What is your opinion?"),
+      );
       const chatId = escapeHtml(String(data.chatId || "Unknown"));
 
       return `✅ <b>Voting Poll Created!</b>\n\n📊 Question: ${question}\n👤 Created by: ${username}\n🆔 User ID: <span class="tg-spoiler">${userId}</span>\n🏠 Chat ID: <span class="tg-spoiler">${chatId}</span>\n\n📢 Poll has been created in the chat!`;
@@ -174,10 +188,12 @@ export const telegramTemplates: Record<string, MessageTemplate> = {
   },
 };
 
-export function getTemplate(name: string, data?: Record<string, string | number>) {
+export function getTemplate(name: string, data?: Record<string, unknown>) {
   const template = telegramTemplates[name];
   if (!template) {
-    throw new Error(`Template "${name}" not found. Available: ${Object.keys(telegramTemplates).join(", ")}`);
+    throw new Error(
+      `Template "${name}" not found. Available: ${Object.keys(telegramTemplates).join(", ")}`,
+    );
   }
   return {
     text: template.template(data),

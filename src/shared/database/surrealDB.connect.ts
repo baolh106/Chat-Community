@@ -1,4 +1,5 @@
 import { Surreal } from "surrealdb";
+import { withRetry } from "../utils/retry";
 
 export interface SurrealDBConfig {
   url: string;
@@ -9,15 +10,14 @@ export interface SurrealDBConfig {
 }
 
 export async function connectDB(config: SurrealDBConfig): Promise<Surreal> {
-  try {
-    const db = new Surreal();
-    // Connect to SurrealDB với namespace và database
+  const db = new Surreal();
+  
+  return withRetry(async () => {
     await db.connect(config.url, {
       namespace: config.namespace,
       database: config.database,
     });
 
-    // Sign in nếu có auth credentials
     if (config.username && config.password) {
       await db.signin({
         username: config.username,
@@ -26,10 +26,6 @@ export async function connectDB(config: SurrealDBConfig): Promise<Surreal> {
     }
 
     console.log("✅ Connected to SurrealDB successfully!");
-
     return db;
-  } catch (err) {
-    console.error("❌ SurrealDB connection failed!", err);
-    throw err;
-  }
+  }, 5, 2000);
 }

@@ -1,7 +1,9 @@
 import type { MessageCreate } from "./dtos/param";
+import type { UploadFileInput } from "./ports/file-storage.port";
 
 export interface IMessageApplication {
   create(req: MessageCreate): Promise<void>;
+  createWithFile(req: MessageCreate, file: UploadFileInput): Promise<void>;
   insertList(arrReq: MessageCreate[]): Promise<void>;
   getMessagesByUserId(userId: string): Promise<MessageCreate[]>;
 }
