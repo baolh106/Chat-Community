@@ -7,10 +7,11 @@ export class AdminInfrastructure {
   constructor(private readonly pool: SurrealDbContext) {}
 
   async verifyPassword(password: string): Promise<boolean> {
-    const result = await this.pool
-      .getDB()
-      .select(new Table("admin"))
-      .value("password");
+    const result = await this.pool.execute(async (db) => {
+      return await db
+        .select(new Table("admin"))
+        .value("password");
+    });
 
     const passwordHash = (result[0] as any) || "";
     return await this.comparePassword(password, passwordHash);

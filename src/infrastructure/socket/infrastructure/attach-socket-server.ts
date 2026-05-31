@@ -3,6 +3,7 @@ import { Server } from "socket.io";
 import { applyRedisSocketAdapter } from "./redis.adapter";
 import { socketAuthMiddleware } from "../middleware/socket.middleware";
 import { registerSocketConnectionGateway } from "./socket-connection.gateway";
+import { registerSocketCallSignalingGateway } from "./socket-call-signaling.gateway";
 import { SocketRoomJoinRegistry } from "./socket-room.registry";
 import type { ISessionManager } from "../../../modules/message/application/session-manager.interface";
 import type { IMessageApplication } from "../../../modules/message/application/message.application.interface";
@@ -51,6 +52,7 @@ export async function attachSocketServer(
     messageApplication,
     eventBus,
   );
+  registerSocketCallSignalingGateway(io);
 
   return disposeRedis ? { io, disposeRedis } : { io };
 }

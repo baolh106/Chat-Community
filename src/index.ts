@@ -25,12 +25,11 @@ async function main() {
     app.addRouter(router, path);
   });
 
-  const httpServer = app.start(Number(port));
-
   const socketOpts: AttachSocketServerOptions = {
     redisUrl,
     redisKey: redisSocketIoKey,
   };
+  const httpServer = app.getHttpServer(); // Lấy instance server nhưng chưa listen
   const { disposeRedis, socketService } = await setupSocket(
     httpServer,
     socketOpts,
@@ -38,6 +37,9 @@ async function main() {
     messageApp,
     eventBus,
   );
+
+  // Start listening sau khi mọi thứ đã sẵn sàng
+  app.start(Number(port));
 
   if (disposeRedis) {
     app.addCleanup(() => {

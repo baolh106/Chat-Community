@@ -24,7 +24,7 @@ import { connectDB } from "./shared/database/surrealDB.connect";
 
 export async function setupDatabase() {
   const db = await connectDB(surrealConfig);
-  const dbContext = new SurrealDbContext(db);
+  const dbContext = new SurrealDbContext(db, surrealConfig);
   const uow = new UnitOfWorkSurreal(dbContext);
   return { dbContext, uow };
 }

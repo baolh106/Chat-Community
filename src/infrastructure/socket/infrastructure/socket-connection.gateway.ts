@@ -119,6 +119,13 @@ export function registerSocketConnectionGateway(
         sessionManager?.handleReconnect(userId);
       }
 
+      // Thông báo cho tất cả Admin đang online biết có user mới
+      io.to(ADMIN_ROOM).emit("user:online", {
+        userId,
+        totalOnline: rooms.getOnlineUserIds().length,
+        timestamp: new Date().toISOString()
+      });
+
       s.emit("user:joined", {
         ok: true,
         userId,

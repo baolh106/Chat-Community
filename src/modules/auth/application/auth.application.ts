@@ -80,8 +80,35 @@ export class AuthApplication implements IAuthApplication {
       throw new BadRequestError(ErrorMessage.UNAUTHORIZED);
     }
 
-    const payload = this.jwtAuthService.decodeToken(refreshToken);
+    const decoded = this.jwtAuthService.decodeToken(refreshToken);
+    if (!decoded || !decoded.role) {
+      throw new BadRequestError(ErrorMessage.UNAUTHORIZED);
+    }
 
-    return this.jwtAuthService.generateAllToken(payload);
+    const {
+      exp,
+      iat,
+      nbf,
+      jti,
+      aud,
+      iss,
+      ...payload
+    } = decoded as Record<string, unknown>;
+
+    const cacheKey =
+      payload.role === ROLE.ADMIN
+        ? `${CACHE_PREFIX.REFRESH_TOKEN}:admin`
+        : `${CACHE_PREFIX.REFRESH_TOKEN}:${payload.userId}`;
+
+    const storedToken = await redisClient.get(cacheKey);
+    if (!storedToken || storedToken !== refreshToken) {
+      throw new BadRequestError(ErrorMessage.UNAUTHORIZED);
+    }
+
+    const token = this.jwtAuthService.generateAllToken(payload);
+    const expiresInSeconds = ms(jwtRefreshTokenExpiresIn as StringValue);
+    await redisClient.set(cacheKey, token.refreshToken, expiresInSeconds);
+
+    return token;
   }
 }

@@ -13,6 +13,7 @@ import {
 
 export class App {
   private app: express.Application;
+  private server?: HttpServer;
   private _cleanup: () => void = () => {};
   private router: Router;
   private prefix: string = "";
@@ -58,12 +59,20 @@ export class App {
     };
   }
 
+  /** Trả về instance của HttpServer để cấu hình các dịch vụ như Socket.IO trước khi start. */
+  getHttpServer(): HttpServer {
+    if (!this.server) {
+      this.server = http.createServer(this.app);
+    }
+    return this.server;
+  }
+
   /** Trả về HTTP server để gắn Socket.IO hoặc tài nguyên khác cần `http.Server`. */
   start(port: number): HttpServer {
     this.app.use(this.prefix, this.router);
     this.app.use(notFoundHandler);
     this.app.use(errorHandler);
-    const server = http.createServer(this.app);
+    const server = this.getHttpServer();
     server.listen(port, () => {
       console.log(`SERVER RUNNING ON PORT ${port}`);
     });

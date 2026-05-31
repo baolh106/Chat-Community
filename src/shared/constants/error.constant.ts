@@ -9,6 +9,7 @@ export const ErrorMessage = {
   // Auth module
   PASSWORD_REQUIRED: "Password is required",
   NICKNAME_REQUIRED: "Nickname is required",
+  REFRESH_TOKEN_REQUIRED: "Refresh token is required",
   IDENTIFIER_NUMBER_REQUIRED: "Identifier number is required",
 };
 

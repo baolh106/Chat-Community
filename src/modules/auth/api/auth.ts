@@ -51,6 +51,20 @@ export class AuthAPI {
       }),
     );
 
+    // Refresh access token using refresh token
+    router.post(
+      "/refresh",
+      catchAsync(async (req: Request, res: Response) => {
+        const { refreshToken } = req.body;
+        if (!refreshToken || refreshToken.trim().length === 0) {
+          sendFailure(res, ErrorMessage.REFRESH_TOKEN_REQUIRED);
+        }
+
+        const result = await this.userSessionApp.refreshToken(refreshToken);
+        sendSuccess(res, result, "Token refreshed successfully");
+      }),
+    );
+
     return router;
   }
 }
