@@ -10,6 +10,10 @@ build/
 .env
 !.env.example
 
+# md file
+*.md
+!README.md
+
 # Logs & runtime
 logs/
 *.log
@@ -30,10 +34,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-
-# md file
-*.md
-!README.md
 
 # Optional: bỏ comment nếu muốn commit cấu hình chung cho team
 # .vscode/
