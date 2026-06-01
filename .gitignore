@@ -32,5 +32,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# md file
+*.md
+!README.md
+
 # Optional: bỏ comment nếu muốn commit cấu hình chung cho team
 # .vscode/
