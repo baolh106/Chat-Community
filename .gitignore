@@ -8,7 +8,6 @@ build/
 
 # Environment (secrets — dùng .env.example để mẫu biến)
 .env
-!.env.*
 !.env.example
 
 # Logs & runtime

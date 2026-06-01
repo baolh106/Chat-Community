@@ -11,8 +11,39 @@ if (process.env.NODE_ENV !== "development") {
 
 export const port = process.env.PORT || 4000;
 
+const rawRedisUrl = (process.env.REDIS_URL ?? "").trim();
+const redisHost = (process.env.REDIS_HOST ?? "localhost").trim();
+const redisPort = (process.env.REDIS_PORT ?? "6379").trim();
+const redisPassword = (process.env.REDIS_PASSWORD ?? "").trim();
+const redisUsername = (process.env.REDIS_USERNAME ?? "").trim();
+
+function buildRedisUrl(): string {
+  if (rawRedisUrl.length > 0) {
+    return rawRedisUrl;
+  }
+
+  if (!redisHost || !redisPort) {
+    return "";
+  }
+
+  let auth = "";
+  if (redisPassword || redisUsername) {
+    const encodedUsername = encodeURIComponent(redisUsername);
+    const encodedPassword = encodeURIComponent(redisPassword);
+    if (redisUsername && redisPassword) {
+      auth = `${encodedUsername}:${encodedPassword}@`;
+    } else if (redisPassword) {
+      auth = `:${encodedPassword}@`;
+    } else {
+      auth = `${encodedUsername}@`;
+    }
+  }
+
+  return `redis://${auth}${redisHost}:${redisPort}`;
+}
+
 /** Redis URL cho Socket.IO adapter. Để trống = chỉ adapter in-memory (một process). */
-export const redisUrl = (process.env.REDIS_URL ?? "").trim();
+export const redisUrl = buildRedisUrl();
 
 /** Prefix pub/sub Redis cho Socket.IO (mặc định thư viện: `socket.io`). */
 export const redisSocketIoKey = (process.env.REDIS_SOCKET_IO_KEY ?? "").trim();
