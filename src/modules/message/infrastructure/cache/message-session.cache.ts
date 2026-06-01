@@ -6,6 +6,8 @@ export interface IMessageSessionCache {
   appendMessage(userId: string, message: MessageCreate): Promise<void>;
   appendMessages(userId: string, messages: MessageCreate[]): Promise<void>;
   getMessages(userId: string): Promise<MessageCreate[]>;
+  markMessagesAsRead(userId: string, readerId: string): Promise<number>;
+  getUnreadCount(userId: string, readerId: string): Promise<number>;
   deleteMessages(userId: string): Promise<void>;
   hasMessages(userId: string): Promise<boolean>;
 }
@@ -24,6 +26,7 @@ export class MessageSessionCache implements IMessageSessionCache {
     const current = await this.getMessages(userId);
     const next = [...current, ...messages].map((message) => ({
       ...message,
+      isRead: message.isRead ?? false,
       createdAt:
         message.createdAt instanceof Date
           ? message.createdAt.toISOString()
@@ -41,11 +44,43 @@ export class MessageSessionCache implements IMessageSessionCache {
 
     return existing.map((message) => ({
       ...message,
+      isRead: message.isRead ?? false,
       createdAt:
         message.createdAt instanceof Date
           ? message.createdAt
           : new Date(message.createdAt),
     }));
+  }
+
+  async markMessagesAsRead(
+    userId: string,
+    readerId: string,
+  ): Promise<number> {
+    const key = this.getRedisKey(userId);
+    const messages = await this.getMessages(userId);
+    let updatedCount = 0;
+    const next = messages.map((message) => {
+      const shouldMarkRead = message.receiver === readerId && !message.isRead;
+      if (shouldMarkRead) {
+        updatedCount += 1;
+        return { ...message, isRead: true };
+      }
+      return message;
+    });
+    if (updatedCount > 0) {
+      await redisClient.setJson(key, next, MessageSession.CACHE_TTL);
+    }
+    return updatedCount;
+  }
+
+  async getUnreadCount(
+    userId: string,
+    readerId: string,
+  ): Promise<number> {
+    const messages = await this.getMessages(userId);
+    return messages.filter(
+      (message) => message.receiver === readerId && !message.isRead,
+    ).length;
   }
 
   async deleteMessages(userId: string): Promise<void> {

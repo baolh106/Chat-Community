@@ -93,6 +93,26 @@ export class MessageApplication implements IMessageApplication {
     return [];
   }
 
+  public async markMessagesAsRead(
+    userId: string,
+    readerId: string,
+  ): Promise<number> {
+    if (!this._sessionCache) {
+      return 0;
+    }
+    return await this._sessionCache.markMessagesAsRead(userId, readerId);
+  }
+
+  public async getUnreadCount(
+    userId: string,
+    readerId: string,
+  ): Promise<number> {
+    if (!this._sessionCache) {
+      return 0;
+    }
+    return await this._sessionCache.getUnreadCount(userId, readerId);
+  }
+
   private attachStoredFile(
     message: MessageCreate,
     storedFile: StoredFile,

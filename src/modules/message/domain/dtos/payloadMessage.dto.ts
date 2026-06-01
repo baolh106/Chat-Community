@@ -13,4 +13,5 @@ export interface PayloadMessage {
   createdAt: Date;
   sender: string;
   receiver: string;
+  isRead?: boolean;
 }

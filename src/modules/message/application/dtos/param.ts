@@ -13,4 +13,5 @@ export type MessageCreate = {
   createdAt: Date;
   sender: string;
   receiver: string;
+  isRead?: boolean;
 };

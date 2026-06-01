@@ -50,4 +50,18 @@ export class MessageCacheApplication implements IMessageApplication {
   public async getMessagesByUserId(userId: string): Promise<MessageCreate[]> {
     return await this._sessionCache.getMessages(userId);
   }
+
+  public async markMessagesAsRead(
+    userId: string,
+    readerId: string,
+  ): Promise<number> {
+    return await this._sessionCache.markMessagesAsRead(userId, readerId);
+  }
+
+  public async getUnreadCount(
+    userId: string,
+    readerId: string,
+  ): Promise<number> {
+    return await this._sessionCache.getUnreadCount(userId, readerId);
+  }
 }

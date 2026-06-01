@@ -12,4 +12,5 @@ export interface Message {
   attachmentType: "image" | "file" | null;
   sender: string;
   receiver: string;
+  isRead: boolean;
 }

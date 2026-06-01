@@ -48,6 +48,44 @@ export class MessageAPI {
       }),
     );
 
+    router.get(
+      "/list/:conversationKey",
+      catchAsync(async (req: Request, res: Response) => {
+        const { conversationKey } = req.params;
+        const messages = await this._messageApp.getMessagesByUserId(
+          String(conversationKey),
+        );
+        sendSuccess(res, messages, "Get messages successful");
+      }),
+    );
+
+    router.post(
+      "/mark-read",
+      catchAsync(async (req: Request, res: Response) => {
+        const body = req.body as { conversationKey?: string; readerId?: string };
+        const conversationKey = String(body.conversationKey ?? "");
+        const readerId = String(body.readerId ?? "");
+        const updatedCount = await this._messageApp.markMessagesAsRead(
+          conversationKey,
+          readerId,
+        );
+        sendSuccess(res, { updatedCount }, "Mark read successful");
+      }),
+    );
+
+    router.get(
+      "/unread-count/:conversationKey",
+      catchAsync(async (req: Request, res: Response) => {
+        const { conversationKey } = req.params;
+        const readerId = String(req.query.readerId ?? "");
+        const count = await this._messageApp.getUnreadCount(
+          String(conversationKey),
+          readerId,
+        );
+        sendSuccess(res, { unreadCount: count }, "Get unread count successful");
+      }),
+    );
+
     return router;
   }
 

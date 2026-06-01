@@ -6,4 +6,6 @@ export interface IMessageApplication {
   createWithFile(req: MessageCreate, file: UploadFileInput): Promise<void>;
   insertList(arrReq: MessageCreate[]): Promise<void>;
   getMessagesByUserId(userId: string): Promise<MessageCreate[]>;
+  markMessagesAsRead(userId: string, readerId: string): Promise<number>;
+  getUnreadCount(userId: string, readerId: string): Promise<number>;
 }

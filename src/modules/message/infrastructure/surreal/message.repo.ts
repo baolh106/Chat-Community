@@ -27,6 +27,7 @@ export class MessageRepo implements IMessageRepository {
           createdAt: new Date(),
           sender: payload.sender,
           receiver: payload.receiver,
+          isRead: payload.isRead ?? false,
         });
     });
 
@@ -53,6 +54,7 @@ export class MessageRepo implements IMessageRepository {
             createdAt: m.createdAt,
             sender: m.sender,
             receiver: m.receiver,
+            isRead: m.isRead ?? false,
           })),
         )
         .output("none");

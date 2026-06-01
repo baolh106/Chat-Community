@@ -11,6 +11,7 @@ export type TMessage = {
   createdAt: Date;
   sender: string;
   receiver: string;
+  isRead: boolean;
 };
 
 export type TErrorNotification = {
