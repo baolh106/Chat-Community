@@ -102,3 +102,4 @@ Vấn đề: Ai là người trả giá cao nhất ở giây cuối cùng?
 Giải pháp: * Websocket + Redis Sorted Set (ZSET): Dùng ZSET để lưu giá tiền làm score. Redis sẽ tự động sắp xếp ai cao nhất lên đầu với tốc độ cực nhanh.
 
 NTP Sync: Đảm bảo thời gian trên tất cả server phải đồng bộ đến từng miligiây.
+test
