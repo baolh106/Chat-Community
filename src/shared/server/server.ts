@@ -6,6 +6,7 @@ import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
+import { corsOrigin, nodeEnv } from "../../config/env";
 import {
   errorHandler,
   notFoundHandler,
@@ -19,12 +20,17 @@ export class App {
   private prefix: string = "";
   constructor() {
     this.app = express();
-    this.app.use(
-      cors({
-        origin: "*",
-        methods: ["GET", "POST", "PUT", "DELETE"],
-      }),
-    );
+    const corsOptions = {
+      origin:
+        nodeEnv === "production"
+          ? corsOrigin.length > 0
+            ? corsOrigin.split(",").map((item) => item.trim()).filter(Boolean)
+            : false
+          : "*",
+      methods: ["GET", "POST", "PUT", "DELETE"],
+    };
+
+    this.app.use(cors(corsOptions));
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(compression());
@@ -53,8 +59,9 @@ export class App {
   }
 
   addCleanup(cleanup: () => void) {
+    const previousCleanup = this._cleanup;
     this._cleanup = () => {
-      this._cleanup;
+      previousCleanup();
       cleanup();
     };
   }

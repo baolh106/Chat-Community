@@ -33,9 +33,7 @@ async function main() {
   const { disposeRedis, socketService } = await setupSocket(
     httpServer,
     socketOpts,
-    sessionManager,
-    messageApp,
-    eventBus,
+    { sessionManager, messageApplication: messageApp, eventBus },
   );
 
   // Start listening sau khi mọi thứ đã sẵn sàng

@@ -1,4 +1,4 @@
-import type { SurrealDbContext } from "../../../config/database/surrealDBContext";
+import type { IDbExecutor } from "../../../shared/database/db-executor.interface";
 import type { IUnitOfWork } from "../../../infrastructure/IUnitOfWork";
 import type { IEventBus } from "../../../infrastructure/event-bus/application/event-bus.interface";
 import { MessageAPI } from "../api/message";
@@ -9,11 +9,11 @@ import { SessionManager } from "../application/session-manager";
 import { GoogleDriveFileStorage } from "../../../infrastructure/google-drive/google-drive-file-storage";
 
 export const messageModule = (
-  pool: SurrealDbContext,
+  dbExecutor: IDbExecutor,
   uow: IUnitOfWork,
   eventBus: IEventBus,
 ) => {
-  const repo = new MessageRepo(pool);
+  const repo = new MessageRepo(dbExecutor);
   const sessionCache = new MessageSessionCache();
   const fileStorage = new GoogleDriveFileStorage();
   const sessionManager = new SessionManager(sessionCache, repo);

@@ -1,5 +1,6 @@
 import { surrealConfig } from "./config/database/database";
 import { SurrealDbContext } from "./config/database/surrealDBContext";
+import type { IDbExecutor } from "./shared/database/db-executor.interface";
 import type { IEventBus } from "./infrastructure/event-bus/application/event-bus.interface";
 import { eventBusModule } from "./infrastructure/event-bus/presentation/event-bus.module";
 import type { ISocketApplication } from "./infrastructure/socket/application/socket.application.interface";
@@ -30,7 +31,7 @@ export async function setupDatabase() {
 }
 
 export async function setupModules(
-  dbContext: SurrealDbContext,
+  dbContext: IDbExecutor,
   uow: UnitOfWorkSurreal,
 ) {
   const { eventBus } = eventBusModule();
@@ -52,16 +53,16 @@ export async function setupModules(
 export async function setupSocket(
   httpServer: any,
   opts: AttachSocketServerOptions,
-  sessionManager?: ISessionManager,
-  messageApp?: IMessageApplication,
-  eventBus?: IEventBus,
+  deps: {
+    sessionManager: ISessionManager;
+    messageApplication: IMessageApplication;
+    eventBus: IEventBus;
+  },
 ) {
   const { disposeRedis, socketService } = await setupSocketServer(
     httpServer,
     opts,
-    sessionManager,
-    messageApp,
-    eventBus,
+    deps,
   );
   return { disposeRedis, socketService };
 }

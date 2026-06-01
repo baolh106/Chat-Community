@@ -1,12 +1,13 @@
 import type { Surreal } from "surrealdb";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { SurrealDBConfig } from "./database";
+import type { IDbExecutor } from "../../shared/database/db-executor.interface";
 
 /**
  * SurrealDB Context - Tương tự MssqlDbContext nhưng cho SurrealDB
  * Hỗ trợ transaction thông qua AsyncLocalStorage
  */
-export class SurrealDbContext {
+export class SurrealDbContext implements IDbExecutor {
   static transactionStorage = new AsyncLocalStorage<Surreal>();
   private reauthPromise: Promise<void> | null = null;
 

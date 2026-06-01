@@ -6,6 +6,7 @@ import {
   attachSocketServer,
   type AttachSocketServerOptions,
   type AttachedSocketServer,
+  type SocketServerDependencies,
 } from "../infrastructure/attach-socket-server";
 import type { IEventBus } from "../../event-bus/application/event-bus.interface";
 
@@ -28,16 +29,12 @@ export type BootstrappedSocket = AttachedSocketServer & {
 export async function setupSocketServer(
   httpServer: HttpServer,
   options: AttachSocketServerOptions,
-  sessionManager?: ISessionManager,
-  messageApplication?: IMessageApplication,
-  eventBus?: IEventBus,
+  deps: SocketServerDependencies,
 ): Promise<BootstrappedSocket> {
   const attached = await attachSocketServer(
     httpServer,
     options,
-    sessionManager,
-    messageApplication,
-    eventBus,
+    deps,
   );
   const socketService = new SocketApplication(attached.io);
   return { ...attached, socketService };

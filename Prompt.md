@@ -14,4 +14,10 @@
 - Optimize Performance
 
 ### 4. Tasks
-- Check xem có thể gửi ảnh hoặc file đính kèm được không
+- Chỉ ra đoạn code nào đang gặp phải vấn đề bên dưới
+- Show code và cách để cải thiện chúng
+
+### 5. Need improve
+- Coupling runtime ở socket layer có khả năng tiềm ẩn
+
+attachSocketServer nhận sessionManager, messageApplication, và eventBus dưới dạng optional, có thể che lấp dependency thiếu.

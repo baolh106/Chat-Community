@@ -14,6 +14,12 @@ export type AttachSocketServerOptions = {
   redisKey?: string;
 };
 
+export type SocketServerDependencies = {
+  sessionManager: ISessionManager;
+  messageApplication: IMessageApplication;
+  eventBus: IEventBusPublisher;
+};
+
 export type AttachedSocketServer = {
   io: Server;
   disposeRedis?: () => Promise<void>;
@@ -25,10 +31,14 @@ export type AttachedSocketServer = {
 export async function attachSocketServer(
   httpServer: HttpServer,
   options: AttachSocketServerOptions,
-  sessionManager?: ISessionManager,
-  messageApplication?: IMessageApplication,
-  eventBus?: IEventBusPublisher,
+  deps: SocketServerDependencies,
 ): Promise<AttachedSocketServer> {
+  const { sessionManager, messageApplication, eventBus } = deps;
+  if (!sessionManager || !messageApplication || !eventBus) {
+    throw new Error(
+      "attachSocketServer requires sessionManager, messageApplication, and eventBus",
+    );
+  }
   const io = new Server(httpServer, {
     cors: { origin: "*" },
   });

@@ -1,5 +1,5 @@
 import { RecordId, Table, Uuid } from "surrealdb";
-import type { SurrealDbContext } from "../../../../config/database/surrealDBContext";
+import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
 import { BadRequestError } from "../../../../shared/utils/error";
 import { ResponseMessage } from "../../constant/constant";
 import type { PayloadMessage } from "../../domain/dtos/payloadMessage.dto";
@@ -7,7 +7,7 @@ import type { IMessageRepository } from "../../domain/mesage.repository";
 import type { TMessage } from "../message.type";
 
 export class MessageRepo implements IMessageRepository {
-  constructor(private readonly pool: SurrealDbContext) {}
+  constructor(private readonly pool: IDbExecutor) {}
 
   async create(payload: PayloadMessage): Promise<void> {
     const userId = new RecordId("messages", Uuid.v4());

@@ -1,10 +1,10 @@
 import argon2 from "argon2";
 import { Table } from "surrealdb";
-import type { SurrealDbContext } from "../../../config/database/surrealDBContext";
+import type { IDbExecutor } from "../../../shared/database/db-executor.interface";
 import type { TAdmin } from "../domain/dtos/admin.dto";
 
 export class AdminInfrastructure {
-  constructor(private readonly pool: SurrealDbContext) {}
+  constructor(private readonly pool: IDbExecutor) {}
 
   async verifyPassword(password: string): Promise<boolean> {
     const result = await this.pool.execute(async (db) => {
