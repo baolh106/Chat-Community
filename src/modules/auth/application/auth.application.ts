@@ -25,6 +25,9 @@ export class AuthApplication implements IAuthApplication {
 
   async startUserSession(req: UserSessionStartRequest): Promise<TokenResponse> {
     const nickname = req.nickname?.trim();
+    if (nickname && nickname.length > 15) {
+      throw new BadRequestError(ErrorMessage.NICKNAME_TOO_LONG);
+    }
     const userId = `${nickname}_${Date.now()}`;
 
     const payload = {

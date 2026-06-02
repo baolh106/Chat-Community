@@ -9,6 +9,7 @@ export const ErrorMessage = {
   // Auth module
   PASSWORD_REQUIRED: "Password is required",
   NICKNAME_REQUIRED: "Nickname is required",
+  NICKNAME_TOO_LONG: "Nickname must be at most 15 characters",
   REFRESH_TOKEN_REQUIRED: "Refresh token is required",
   IDENTIFIER_NUMBER_REQUIRED: "Identifier number is required",
 };

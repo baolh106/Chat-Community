@@ -22,6 +22,11 @@ export class AuthAPI {
           sendFailure(res, ErrorMessage.NICKNAME_REQUIRED);
         }
 
+        const trimmed = payload.nickname?.trim();
+        if (trimmed && trimmed.length > 15) {
+          sendFailure(res, ErrorMessage.NICKNAME_TOO_LONG);
+        }
+
         const result = await this.userSessionApp.startUserSession(payload);
 
         sendSuccess(res, result, "User session started successfully");
