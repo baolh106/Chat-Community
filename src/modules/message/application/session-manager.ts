@@ -1,18 +1,19 @@
-import type { IMessageRepository } from "../domain/mesage.repository";
 import type { IMessageSessionCache } from "../infrastructure/cache/message-session.cache";
 import type { ISessionManager } from "./session-manager.interface";
 import { MessageSession } from "../constant/constant";
 import { redisClient } from "../../../infrastructure/redis";
 import { CACHE_PREFIX } from "../../auth/constants/constant";
-import { withRetry } from "../../../shared/utils/retry";
 
 export class SessionManager implements ISessionManager {
   private disconnectTimer: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(
     private readonly messageSessionCache: IMessageSessionCache,
-    private readonly messageRepository: IMessageRepository,
   ) {}
+
+  isPendingDisconnect(userId: string): boolean {
+    return this.disconnectTimer.has(userId);
+  }
 
   handleDisconnect(userId: string): void {
     this.cancelPendingTimer(userId);
@@ -33,21 +34,15 @@ export class SessionManager implements ISessionManager {
 
   async finalizeSession(userId: string): Promise<void> {
     this.cancelPendingTimer(userId);
-    const messages = await this.messageSessionCache.getMessages(userId);
-    if (messages.length === 0) {
-      // Nếu không có tin nhắn nào trong cache, vẫn cần xóa refresh token
-      await redisClient.del(`${CACHE_PREFIX.REFRESH_TOKEN}:${userId}`);
-      return;
-    }
-
-    // Thực hiện retry khi lưu vào database chính
-    await withRetry(async () => {
-      await this.messageRepository.insertList(messages);
+    try {
       await this.messageSessionCache.deleteMessages(userId);
       await redisClient.del(`${CACHE_PREFIX.REFRESH_TOKEN}:${userId}`);
-    }, 3, 1000).catch(err => {
-      console.error(`[CRITICAL] Could not finalize session for ${userId} after all retries.`, err);
-    });
+    } catch (error) {
+      console.error(
+        `[SessionManager] Failed to cleanup session for user=${userId}`,
+        error,
+      );
+    }
   }
 
   private cancelPendingTimer(userId: string): void {

@@ -16,10 +16,13 @@ async function main() {
   app.addPrefix("/api");
 
   const { dbContext, uow } = await setupDatabase();
-  const { eventBus, routes, sessionManager, messageApp } = await setupModules(
-    dbContext,
-    uow,
-  );
+  const {
+    eventBus,
+    routes,
+    sessionManager,
+    messageApp,
+    messageOutboxWorker,
+  } = await setupModules(dbContext, uow);
 
   routes.forEach(({ path, router }) => {
     app.addRouter(router, path);
@@ -47,6 +50,10 @@ async function main() {
 
   const { telegramNotifier, telegramBotListener } = telegramModule();
   setupEventHandlers(eventBus, socketService, telegramNotifier);
+  await messageOutboxWorker.start();
+  app.addCleanup(() => {
+    messageOutboxWorker.stop();
+  });
 
   void telegramBotListener.start();
   console.log("Server started with database, socket and telegram modules");

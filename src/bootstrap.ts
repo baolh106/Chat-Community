@@ -39,15 +39,32 @@ export async function setupModules(
     messageApi,
     messageApp,
     sessionManager,
+    messageOutboxWorker,
+    outboxRepo,
+    messageRepo,
   } = messageModule(dbContext, uow, eventBus);
   const authApi = authModule(dbContext, eventBus).authApi;
+
+  // Ensure table ready before starting the application
+  await ensureDatabaseReady([
+    messageRepo, outboxRepo
+  ]);
 
   const routes = [
     { path: "/auth", router: authApi.api() },
     { path: "/message", router: messageApi.api() },
   ];
 
-  return { eventBus, routes, sessionManager, messageApp };
+  return { eventBus, routes, sessionManager, messageApp, messageOutboxWorker };
+}
+
+async function ensureDatabaseReady(schemas: any[]) {
+  try {
+    await Promise.all(schemas.map((repo) => repo.ensureReady()));
+  } catch (error) {
+    console.error("[Bootstrap] Error ensuring database readiness:", error);
+    throw error;
+  }
 }
 
 export async function setupSocket(

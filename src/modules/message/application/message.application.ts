@@ -1,11 +1,10 @@
 import type { IUnitOfWork } from "../../../infrastructure/IUnitOfWork";
-import type { IEventBusPublisher } from "../../../infrastructure/event-bus/application/event-bus-publisher.interface";
 import { BadRequestError } from "../../../shared/utils/error";
-import { MessageCreatedEvent } from "../domain/events/message-created.event";
 import type { IMessageRepository } from "../domain/mesage.repository";
+import type { IMessageOutboxRepository } from "../domain/message-outbox.repository";
+import type { IMessageSessionCache } from "../infrastructure/cache/message-session.cache";
 import type { MessageCreate } from "./dtos/param";
 import type { IMessageApplication } from "./message.application.interface";
-import type { IMessageSessionCache } from "../infrastructure/cache/message-session.cache";
 import type {
   IFileStorage,
   StoredFile,
@@ -16,24 +15,17 @@ export class MessageApplication implements IMessageApplication {
   constructor(
     private readonly _messageRepo: IMessageRepository,
     private readonly _uow: IUnitOfWork,
-    private readonly _eventBus: IEventBusPublisher,
+    private readonly _outboxRepo: IMessageOutboxRepository,
     private readonly _sessionCache?: IMessageSessionCache,
     private readonly _fileStorage?: IFileStorage,
   ) {}
 
   public async create(message: MessageCreate) {
     this.validateMessage(message);
-    if (this._sessionCache) {
-      const conversationKey =
-        message.sender === "admin" ? message.receiver : message.sender;
-      await this._sessionCache.appendMessage(conversationKey, message);
-      await this._eventBus.publish(new MessageCreatedEvent(message));
-      return;
-    }
 
     await this._uow.runInTransaction(async () => {
       await this._messageRepo.create(message);
-      await this._eventBus.publish(new MessageCreatedEvent(message));
+      await this._outboxRepo.createMessageCreated(message);
     });
   }
 
@@ -51,36 +43,12 @@ export class MessageApplication implements IMessageApplication {
 
   public async insertList(arrMessage: MessageCreate[]) {
     arrMessage.forEach((message) => this.validateMessage(message));
-    if (this._sessionCache) {
-      const groupedByConversation = new Map<string, MessageCreate[]>();
-      for (const message of arrMessage) {
-        const key =
-          message.sender === "admin" ? message.receiver : message.sender;
-        const group = groupedByConversation.get(key) ?? [];
-        group.push(message);
-        groupedByConversation.set(key, group);
-      }
-
-      for (const [
-        conversationKey,
-        messages,
-      ] of groupedByConversation.entries()) {
-        await this._sessionCache.appendMessages(conversationKey, messages);
-      }
-
-      await Promise.all(
-        arrMessage.map((m) =>
-          this._eventBus.publish(new MessageCreatedEvent(m)),
-        ),
-      );
-      return;
-    }
 
     await this._uow.runInTransaction(async () => {
       await this._messageRepo.insertList(arrMessage);
       await Promise.all(
-        arrMessage.map((m) =>
-          this._eventBus.publish(new MessageCreatedEvent(m)),
+        arrMessage.map((message) =>
+          this._outboxRepo.createMessageCreated(message),
         ),
       );
     });

@@ -115,16 +115,20 @@ export function registerSocketConnectionGateway(
 
       void s.join(userRoom(userId));
       const userCameOnline = rooms.registerUserConnected(userId);
+      const isReconnecting = sessionManager?.isPendingDisconnect(userId) ?? false;
+
       if (userCameOnline) {
         sessionManager?.handleReconnect(userId);
       }
 
-      // Thông báo cho tất cả Admin đang online biết có user mới
-      io.to(ADMIN_ROOM).emit("user:online", {
-        userId,
-        totalOnline: rooms.getOnlineUserIds().length,
-        timestamp: new Date().toISOString()
-      });
+      // Chỉ thông báo online nếu không phải là reconnect (F5)
+      if (userCameOnline && !isReconnecting) {
+        io.to(ADMIN_ROOM).emit("user:online", {
+          userId,
+          totalOnline: rooms.getOnlineUserIds().length,
+          timestamp: new Date().toISOString()
+        });
+      }
 
       s.emit("user:joined", {
         ok: true,
@@ -148,7 +152,7 @@ export function registerSocketConnectionGateway(
       console.log(
         `usercameonline=${userCameOnline} totalOnline=${rooms.getOnlineUserIds().length} and eventBus=${!!eventBus}`,
       );
-      if (userCameOnline && eventBus) {
+      if (userCameOnline && !isReconnecting && eventBus) {
         console.log(
           `[socket-gateway] publish event ${UserJoinedEvent.name} for user: ${rooms.getOnlineUserIds().length} online`,
         );
