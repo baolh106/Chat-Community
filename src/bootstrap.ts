@@ -1,4 +1,4 @@
-import { surrealConfig } from "./config/database/database";
+import { mongoConfig, surrealConfig } from "./config/database/database";
 import { SurrealDbContext } from "./config/database/surrealDBContext";
 import type { IDbExecutor } from "./shared/database/db-executor.interface";
 import type { IEventBus } from "./infrastructure/event-bus/application/event-bus.interface";
@@ -22,17 +22,32 @@ import { MessageUserSocketNotifier } from "./modules/message/infrastructure/real
 import { MessageAdminTelegramNotifier } from "./modules/message/infrastructure/telegram/message-admin-telegram.notifier";
 import { messageModule } from "./modules/message/presentation/message.module";
 import { connectDB } from "./shared/database/surrealDB.connect";
+import { connectMongoClient } from "./shared/database/mongoDB.connect";
+import { MongoDbContext } from "./config/database/mongoDBContext";
+import { UnitOfWorkMongo } from "./infrastructure/UnitOfWork-Mongo";
+import type { IUnitOfWork } from "./infrastructure/IUnitOfWork";
 
-export async function setupDatabase() {
+async function setupSurrealDB() {
   const db = await connectDB(surrealConfig);
   const dbContext = new SurrealDbContext(db, surrealConfig);
   const uow = new UnitOfWorkSurreal(dbContext);
   return { dbContext, uow };
 }
 
+async function setupMongoDB() {
+  const client = await connectMongoClient(mongoConfig);
+  const dbContext = new MongoDbContext(client, mongoConfig);
+  const uow = new UnitOfWorkMongo(dbContext.getConnection());
+  return { dbContext, uow };
+}
+
+export async function setupDatabase() {
+  return await setupMongoDB();
+}
+
 export async function setupModules(
   dbContext: IDbExecutor,
-  uow: UnitOfWorkSurreal,
+  uow: IUnitOfWork,
 ) {
   const { eventBus } = eventBusModule();
   const {

@@ -1,4 +1,4 @@
-import { RecordId, Table, Uuid } from "surrealdb";
+import { RecordId, Surreal, Table, Uuid } from "surrealdb";
 import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
 import type {
   IMessageOutboxRepository,
@@ -10,7 +10,7 @@ import type { MessageCreate } from "../../application/dtos/param";
 type TMessageOutbox = Omit<MessageOutboxRecord, "id">;
 
 export class MessageOutboxRepo implements IMessageOutboxRepository {
-  constructor(private readonly pool: IDbExecutor) {}
+  constructor(private readonly pool: IDbExecutor<Surreal>) {}
 
   async ensureReady(): Promise<void> {
     await this.pool.execute(async (db) => {

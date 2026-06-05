@@ -1,9 +1,9 @@
 import argon2 from "argon2";
 import { Table } from "surrealdb";
-import type { IDbExecutor } from "../../../shared/database/db-executor.interface";
-import type { TAdmin } from "../domain/dtos/admin.dto";
+import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
+import type { IAdminInfrastructure } from "../../domain/admin.infra";
 
-export class AdminInfrastructure {
+export class AdminInfrastructure implements IAdminInfrastructure {
   constructor(private readonly pool: IDbExecutor) {}
 
   async verifyPassword(password: string): Promise<boolean> {

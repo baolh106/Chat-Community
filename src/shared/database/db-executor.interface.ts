@@ -1,5 +1,3 @@
-import type { Surreal } from "surrealdb";
-
-export interface IDbExecutor {
-  execute<T>(work: (db: Surreal) => Promise<T>): Promise<T>;
+export interface IDbExecutor<TDb = any> {
+  execute<T>(work: (db: TDb) => Promise<T>): Promise<T>;
 }

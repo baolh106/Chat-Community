@@ -4,11 +4,13 @@ import type { IEventBus } from "../../../infrastructure/event-bus/application/ev
 import { MessageAPI } from "../api/message";
 import { MessageApplication } from "../application/message.application";
 import { MessageOutboxWorker } from "../application/message-outbox.worker";
-import { MessageRepo } from "../infrastructure/surreal/message.repo";
-import { MessageOutboxRepo } from "../infrastructure/surreal/message-outbox.repo";
+// import { MessageRepo } from "../infrastructure/surreal/message.repo";
+// import { MessageOutboxRepo } from "../infrastructure/surreal/message-outbox.repo";
 import { MessageSessionCache } from "../infrastructure/cache/message-session.cache";
 import { SessionManager } from "../application/session-manager";
 import { GoogleDriveFileStorage } from "../../../infrastructure/google-drive/google-drive-file-storage";
+import { MessageRepo } from "../infrastructure/mongo/message.repo";
+import { MessageOutboxRepo } from "../infrastructure/mongo/message-outbox.repo";
 
 export const messageModule = (
   dbExecutor: IDbExecutor,

@@ -1,4 +1,4 @@
-import { RecordId, Table, Uuid } from "surrealdb";
+import { RecordId, Surreal, Table, Uuid } from "surrealdb";
 import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
 import { BadRequestError } from "../../../../shared/utils/error";
 import { ResponseMessage } from "../../constant/constant";
@@ -7,7 +7,7 @@ import type { IMessageRepository } from "../../domain/mesage.repository";
 import type { TMessage } from "../message.type";
 
 export class MessageRepo implements IMessageRepository {
-  constructor(private readonly pool: IDbExecutor) {}
+  constructor(private readonly pool: IDbExecutor<Surreal>) {}
 
   async ensureReady(): Promise<void> {
     await this.pool.execute(async (db) => {

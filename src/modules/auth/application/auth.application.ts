@@ -6,7 +6,7 @@ import { redisClient } from "../../../infrastructure/redis";
 import { ErrorMessage } from "../../../shared/constants/error.constant";
 import { BadRequestError } from "../../../shared/utils/error";
 import { CACHE_PREFIX } from "../constants/constant";
-import type { AdminInfrastructure } from "../infrastructure/admin.infra";
+import type { AdminInfrastructure } from "../infrastructure/surreal/admin.infra";
 import type { JwtAuthService } from "../infrastructure/jwt-auth.service";
 import type {
   TokenResponse,
@@ -15,10 +15,11 @@ import type {
 import type { IAuthApplication } from "./auth.application.interface";
 import { UserJoinedEvent } from "../domain/events/user-joined.event";
 import type { IEventBusPublisher } from "../../../infrastructure/event-bus/application/event-bus-publisher.interface";
+import type { IAdminInfrastructure } from "../domain/admin.infra";
 
 export class AuthApplication implements IAuthApplication {
   constructor(
-    private readonly adminInfra: AdminInfrastructure,
+    private readonly adminInfra: IAdminInfrastructure,
     private readonly jwtAuthService: JwtAuthService,
     private readonly eventBus: IEventBusPublisher,
   ) {}
