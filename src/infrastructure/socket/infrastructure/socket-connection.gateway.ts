@@ -234,7 +234,14 @@ export function registerSocketConnectionGateway(
             const base64 = payload.file.data.includes(",")
               ? payload.file.data.split(",").at(-1)
               : payload.file.data;
-            const buffer = Buffer.from(base64 ?? "", "base64");
+            
+            if (!base64) {
+              s.emit("message:error", { ok: false, reason: "invalid_file_data" });
+              return;
+            }
+
+            const buffer = Buffer.from(base64, "base64");
+            
             if (buffer.length > uploadMaxFileSizeMb * 1024 * 1024) {
               s.emit("message:error", {
                 ok: false,
@@ -253,9 +260,16 @@ export function registerSocketConnectionGateway(
             await messageCacheApp.create(message);
           }
         } catch (error: unknown) {
+          console.error("[SocketGateway] message:send error:", error);
+          
+          // Trích xuất lỗi chi tiết hơn nếu có (ví dụ từ Google Drive API/Axios)
+          const errorMessage = (error as any)?.response?.data?.error?.message 
+            || (error as any)?.message 
+            || "unknown_error";
+
           s.emit("message:error", {
             ok: false,
-            reason: error instanceof Error ? error.message : "unknown_error",
+            reason: errorMessage,
           });
         }
       },
