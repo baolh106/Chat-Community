@@ -1,4 +1,4 @@
-import { RecordId, Surreal, Table, Uuid } from "surrealdb";
+import { RecordId, Surreal, Table } from "surrealdb";
 import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
 import type {
   IMessageOutboxRepository,
@@ -6,6 +6,8 @@ import type {
 } from "../../domain/message-outbox.repository";
 import { MESSAGE_OUTBOX_EVENT_TYPE } from "../../domain/message-outbox.repository";
 import type { MessageCreate } from "../../application/dtos/param";
+import { internalEvents, OUTBOX_NOTIFY_EVENT } from "../../../../infrastructure/socket/application/internal-event-emitter";
+import { randomUUID } from "node:crypto";
 
 type TMessageOutbox = Omit<MessageOutboxRecord, "id">;
 
@@ -28,7 +30,7 @@ export class MessageOutboxRepo implements IMessageOutboxRepository {
   }
 
   async createMessageCreated(payload: MessageCreate): Promise<void> {
-    const eventId = Uuid.v4().toString();
+    const eventId = randomUUID();
     const recordId = new RecordId("message_outbox", eventId);
     const now = new Date();
 
@@ -52,7 +54,10 @@ export class MessageOutboxRepo implements IMessageOutboxRepository {
           processedAt: null,
           lastError: null,
         })
-        .then(() => undefined);
+        .then(() => {
+          // Đánh thức Worker ngay lập tức sau khi lưu thành công
+          internalEvents.emit(OUTBOX_NOTIFY_EVENT);
+        });
     });
   }
 

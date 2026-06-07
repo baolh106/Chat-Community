@@ -32,13 +32,15 @@ export class MessageApplication implements IMessageApplication {
   public async createWithFile(
     message: MessageCreate,
     file: UploadFileInput,
-  ): Promise<void> {
+  ): Promise<MessageCreate> {
     if (!this._fileStorage) {
       throw new BadRequestError("File storage is not configured");
     }
 
     const storedFile = await this._fileStorage.upload(file);
-    await this.create(this.attachStoredFile(message, storedFile));
+    const fullMessage = this.attachStoredFile(message, storedFile);
+    await this.create(fullMessage);
+    return fullMessage;
   }
 
   public async insertList(arrMessage: MessageCreate[]) {

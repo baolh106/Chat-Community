@@ -105,12 +105,12 @@ export function setupEventHandlers(
   telegramNotifier?: ITelegramNotifier,
 ) {
   // Register event handlers
-  const adminNotifier = new MessageAdminSocketNotifier(socketService);
-  const userNotifier = new MessageUserSocketNotifier(socketService);
+  // const adminNotifier = new MessageAdminSocketNotifier(socketService);
+  // const userNotifier = new MessageUserSocketNotifier(socketService);
   const messageToolNotifier = new MessageAdminTelegramNotifier(socketService, telegramNotifier);
   const userJoinedToolNotifier = new UserJoinedTelegramNotifier(telegramNotifier);
-  eventBus.register(new SendMessageSocketHandler(adminNotifier));
-  eventBus.register(new SendMessageSocketHandler(userNotifier));
+  // eventBus.register(new SendMessageSocketHandler(adminNotifier));
+  // eventBus.register(new SendMessageSocketHandler(userNotifier));
   eventBus.register(new SendMessageToolHandler(messageToolNotifier));
   eventBus.register(new UserJoinedToolHandler(userJoinedToolNotifier));
 }

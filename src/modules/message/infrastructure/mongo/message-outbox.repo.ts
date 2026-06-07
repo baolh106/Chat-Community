@@ -7,6 +7,7 @@ import type {
 } from "../../domain/message-outbox.repository";
 import { MESSAGE_OUTBOX_EVENT_TYPE } from "../../domain/message-outbox.repository";
 import type { MessageCreate } from "../../application/dtos/param";
+import { internalEvents, OUTBOX_NOTIFY_EVENT } from "../../../../infrastructure/socket/application/internal-event-emitter";
 import { randomUUID } from "node:crypto";
 
 export class MessageOutboxRepo implements IMessageOutboxRepository {
@@ -42,7 +43,11 @@ export class MessageOutboxRepo implements IMessageOutboxRepository {
         updatedAt: now,
         processedAt: null,
         lastError: null,
-      }, session ? { session } : {});
+      }, session ? { session } : {})
+      .then(() => {
+        // Đánh thức Worker ngay lập tức cho MongoDB flow
+        internalEvents.emit(OUTBOX_NOTIFY_EVENT);
+      });
     });
   }
 

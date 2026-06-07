@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Server, Socket } from "socket.io";
 import { ADMIN_ROOM, userRoom } from "../domain/room-name";
 import type { SocketSessionData } from "../domain/socket-session.types";
@@ -171,11 +172,11 @@ export function registerSocketConnectionGateway(
         content?: string | null;
         imageURL?: string;
         fileURL?: string;
-        file?: {
+        files?: Array<{
           data: string;
           name: string;
           mimeType: string;
-        };
+        }>;
         receiver: string;
       }) => {
         const { role, userId } = s.data;
@@ -205,61 +206,99 @@ export function registerSocketConnectionGateway(
           return;
         }
 
+        const tempId = randomUUID();
         const message: MessageCreate = {
           sender: senderId as string,
           receiver: payload.receiver,
-          content:
-            typeof payload.content === "string" && payload.content.length > 0
-              ? payload.content
-              : null,
+          content: payload.content || null,
           createdAt: new Date(),
-          ...(payload.imageURL ? { imageURL: payload.imageURL } : {}),
-          ...(payload.fileURL ? { fileURL: payload.fileURL } : {}),
+          imageURL: payload.imageURL,
+          fileURL: payload.fileURL,
         };
 
+        const targetRoom = payload.receiver === "admin" ? ADMIN_ROOM : userRoom(payload.receiver);
+        
+        if (!payload.files || payload.files.length === 0) {
+          const fastMessage = {
+            ...message,
+            id: tempId,
+            createdAt: message.createdAt.toISOString(),
+            status: "sent" // Báo cho client là tin nhắn đã bay đi
+          };
+
+          // Phát tin nhắn cho người nhận ngay tại Gateway
+          s.to(targetRoom).emit("message:new", fastMessage);
+
+          // Xác nhận cho người gửi
+          s.emit("message:send:ack", { ok: true, tempId, message: fastMessage });
+
+          // Xử lý logic nghiệp vụ và bắn Event
+          messageCacheApp.create(message).catch(err => {
+            console.error("[SocketGateway] Message creation failed:", err);
+          });
+        } else {
+          s.emit("message:uploading", { tempId, count: payload.files.length });
+        }
+
         try {
-          if (payload.file) {
-            if (
-              typeof payload.file.data !== "string" ||
-              typeof payload.file.name !== "string" ||
-              typeof payload.file.mimeType !== "string"
-            ) {
-              s.emit("message:error", {
-                ok: false,
-                reason: "invalid_file_payload",
-              });
-              return;
-            }
+          if (payload.files && payload.files.length > 0) {
+            // Xử lý upload tất cả file song song để tối ưu tốc độ
+            const uploadPromises = payload.files.map(async (fileData) => {
+              const base64 = fileData.data.includes(",")
+                ? fileData.data.split(",").at(-1)
+                : fileData.data;
+              
+              if (!base64) throw new Error(`invalid_file_data: ${fileData.name}`);
 
-            const base64 = payload.file.data.includes(",")
-              ? payload.file.data.split(",").at(-1)
-              : payload.file.data;
-            
-            if (!base64) {
-              s.emit("message:error", { ok: false, reason: "invalid_file_data" });
-              return;
-            }
+              const buffer = Buffer.from(base64, "base64");
+              if (buffer.length > uploadMaxFileSizeMb * 1024 * 1024) {
+                throw new Error(`file_too_large: ${fileData.name}`);
+              }
 
-            const buffer = Buffer.from(base64, "base64");
-            
-            if (buffer.length > uploadMaxFileSizeMb * 1024 * 1024) {
-              s.emit("message:error", {
-                ok: false,
-                reason: "file_too_large",
-              });
-              return;
-            }
-
-            await messageCacheApp.createWithFile(message, {
-              buffer,
-              originalName: payload.file.name,
-              mimeType: payload.file.mimeType,
-              size: buffer.length,
+              return messageCacheApp.createWithFile(
+                { ...message }, 
+                {
+                  buffer,
+                  originalName: fileData.name,
+                  mimeType: fileData.mimeType,
+                  size: buffer.length,
+                }
+              );
             });
-          } else {
-            await messageCacheApp.create(message);
+
+            const uploadedMessages = await Promise.all(uploadPromises);
+
+            const fileMessage = {
+              ...message,
+              id: tempId,
+              content: payload.content || null,
+              createdAt: message.createdAt.toISOString(),
+              hasAttachments: true,
+              attachments: uploadedMessages.map(m => ({
+                fileURL: m.fileURL,
+                fileDownloadURL: m.fileDownloadURL,
+                fileName: m.fileName,
+                fileMimeType: m.fileMimeType,
+                fileSize: m.fileSize,
+                attachmentType: m.attachmentType
+              }))
+            };
+
+            // Phát tin nhắn chứa file cho người nhận
+            s.to(targetRoom).emit("message:new", fileMessage);
+
+            // Xác nhận hoàn tất upload cho người gửi
+            s.emit("message:send:ack", { 
+              ok: true, 
+              tempId, 
+              message: fileMessage 
+            });
           }
         } catch (error: unknown) {
+          if (payload.files) {
+            s.emit("message:upload:error", { tempId, reason: "upload_failed" });
+          }
+          
           console.error("[SocketGateway] message:send error:", error);
           
           // Trích xuất lỗi chi tiết hơn nếu có (ví dụ từ Google Drive API/Axios)
