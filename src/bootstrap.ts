@@ -26,6 +26,8 @@ import { connectMongoClient } from "./shared/database/mongoDB.connect";
 import { MongoDbContext } from "./config/database/mongoDBContext";
 import { UnitOfWorkMongo } from "./infrastructure/UnitOfWork-Mongo";
 import type { IUnitOfWork } from "./infrastructure/IUnitOfWork";
+import { VideoCallTelegramHandler } from "./infrastructure/telegram/handlers/video-call-telegram.handler";
+import { GramJsCallService } from "./infrastructure/telegram/infrastructure/gramjs-call.service";
 
 async function setupSurrealDB() {
   const db = await connectDB(surrealConfig);
@@ -113,5 +115,9 @@ export function setupEventHandlers(
   // eventBus.register(new SendMessageSocketHandler(userNotifier));
   eventBus.register(new SendMessageToolHandler(messageToolNotifier));
   eventBus.register(new UserJoinedToolHandler(userJoinedToolNotifier));
+  
+  // Register Video Call Handler
+  const telegramCallService = new GramJsCallService();
+  eventBus.register(new VideoCallTelegramHandler(telegramNotifier, telegramCallService));
 }
   

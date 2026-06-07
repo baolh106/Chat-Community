@@ -51,6 +51,9 @@ export const redisSocketIoKey = (process.env.REDIS_SOCKET_IO_KEY ?? "").trim();
 /** Telegram Bot token và chat id để thông báo admin khi offline. */
 export const telegramBotToken = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
 export const telegramChatId = (process.env.TELEGRAM_CHAT_ID ?? "").trim();
+export const telegramAppId = (process.env.TELEGRAM_APP_ID ?? "").trim();
+export const telegramAppHash = (process.env.TELEGRAM_APP_HASH ?? "").trim();
+export const telegramHelperSession = (formatKey(process.env.TELEGRAM_HELPER_SESSION) ?? "").trim();
 
 /** Google Drive storage cho upload file tạm thời. */
 export const googleDriveFolderId = (

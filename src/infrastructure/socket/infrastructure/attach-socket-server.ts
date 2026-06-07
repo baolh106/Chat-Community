@@ -62,7 +62,7 @@ export async function attachSocketServer(
     messageApplication,
     eventBus,
   );
-  registerSocketCallSignalingGateway(io);
+  registerSocketCallSignalingGateway(io, eventBus);
 
   return disposeRedis ? { io, disposeRedis } : { io };
 }

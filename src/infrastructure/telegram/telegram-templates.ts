@@ -186,6 +186,19 @@ export const telegramTemplates: Record<string, MessageTemplate> = {
       return `✅ <b>Voting Poll Created!</b>\n\n📊 Question: ${question}\n👤 Created by: ${username}\n🆔 User ID: <span class="tg-spoiler">${userId}</span>\n🏠 Chat ID: <span class="tg-spoiler">${chatId}</span>\n\n📢 Poll has been created in the chat!`;
     },
   },
+
+  incomingCall: {
+    title: "Incoming Video Call",
+    description: "Thông báo có cuộc gọi video mới",
+    parseMode: "HTML",
+    template: (data = {}) => {
+      const caller = escapeHtml(String(data.caller || "User"));
+      const type = escapeHtml(String(data.type || "video"));
+      const time = escapeHtml(new Date().toLocaleTimeString("vi-VN"));
+
+      return `🚨 <b>INCOMING ${type.toUpperCase()} CALL</b> 🚨\n\n👤 From: <b>${caller}</b>\n🕐 Time: ${time}\n\n👉 <i>Admin please check the dashboard immediately! The helper bot is attempting to ring your Telegram.</i>`;
+    },
+  },
 };
 
 export function getTemplate(name: string, data?: Record<string, unknown>) {
