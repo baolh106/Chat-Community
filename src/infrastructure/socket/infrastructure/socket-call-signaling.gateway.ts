@@ -3,6 +3,9 @@ import type { Server, Socket } from "socket.io";
 import { ADMIN_ROOM, userRoom } from "../domain/room-name";
 import type { SocketSessionData } from "../domain/socket-session.types";
 import { logSocketGateway } from "./socket-gateway.log";
+import type { IEventBusPublisher } from "../../event-bus/application/event-bus-publisher.interface";
+import { VideoCallStartedEvent } from "../../telegram/events/video-call-started.event";
+import { telegramChatId } from "../../../config/env";
 
 type CallMediaType = "audio" | "video";
 type CallEndReason = "completed" | "cancelled" | "declined" | "busy" | "failed";
@@ -179,7 +182,10 @@ async function relayCallEvent(
   });
 }
 
-export function registerSocketCallSignalingGateway(io: Server): void {
+export function registerSocketCallSignalingGateway(
+  io: Server,
+  eventBus?: IEventBusPublisher
+): void {
   io.on("connection", (socket) => {
     const s = socket as Socket & { data: SocketSessionData };
 
@@ -223,6 +229,19 @@ export function registerSocketCallSignalingGateway(io: Server): void {
         "call:incoming",
         body,
       );
+
+      // [NEW] Nếu User gọi Admin, bắn event để Telegram Bot/Helper thực hiện cuộc gọi thực
+      if (receiver === "admin" && s.data.role === "user" && eventBus) {
+        void eventBus.publish(
+          new VideoCallStartedEvent({
+            callerId: caller!,
+            callType: body.mediaType,
+            adminTelegramId: telegramChatId,
+            callId: body.callId,
+            timestamp: body.createdAt
+          } as VideoCallStartedEvent["payload"])
+        );
+      }
 
       s.emit("call:invite:ack", {
         ok: true,

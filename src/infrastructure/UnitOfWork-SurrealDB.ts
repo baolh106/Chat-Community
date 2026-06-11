@@ -13,28 +13,36 @@ export class UnitOfWorkSurreal implements IUnitOfWork {
    * @param work Hàm callback chứa logic nghiệp vụ
    */
   async runInTransaction<T>(work: () => Promise<T>): Promise<T> {
-    const db = this.dbContext.getConnection();
-    // Bắt đầu transaction
-    await db.query("BEGIN TRANSACTION");
+    return await this.dbContext.execute(async (db) => {
+      let isTransactionActive = false;
+      try {
+        // Bắt đầu transaction bên trong try block
+        await db.query("BEGIN TRANSACTION");
+        isTransactionActive = true;
 
-    try {
-      // Lưu transaction instance vào AsyncLocalStorage
-      // Trong SurrealDB, transaction được quản lý qua connection
-      // Nên ta dùng chính connection đó
-      const result = await SurrealDbContext.transactionStorage.run(
-        db,
-        async () => {
-          return await work();
-        },
-      );
+        const result = await SurrealDbContext.transactionStorage.run(
+          db,
+          async () => {
+            return await work();
+          },
+        );
 
-      // Commit transaction
-      await db.query("COMMIT TRANSACTION");
-      return result;
-    } catch (error) {
-      // Rollback transaction
-      await db.query("CANCEL TRANSACTION");
-      throw error;
-    }
+        // Commit transaction và đánh dấu kết thúc
+        if (isTransactionActive) {
+          await db.query("COMMIT TRANSACTION").catch((err) => {
+            if (!String(err).includes("without starting a transaction")) throw err;
+          });
+          isTransactionActive = false;
+        }
+        return result;
+      } catch (error) {
+        if (isTransactionActive) {
+          // Chỉ gọi CANCEL nếu transaction thực sự đã được mở thành công
+          // Dùng .catch(() => {}) để nuốt lỗi nếu DB đã tự động rollback trước đó
+          await db.query("CANCEL TRANSACTION").catch(() => {});
+        }
+        throw error;
+      }
+    });
   }
 }

@@ -1,13 +1,6 @@
 import { Surreal } from "surrealdb";
 import { withRetry } from "../utils/retry";
-
-export interface SurrealDBConfig {
-  url: string;
-  namespace: string;
-  database: string;
-  username?: string;
-  password?: string;
-}
+import type { SurrealDBConfig } from "../../config/database/database";
 
 export async function connectDB(config: SurrealDBConfig): Promise<Surreal> {
   const db = new Surreal();

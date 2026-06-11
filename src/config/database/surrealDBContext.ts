@@ -7,7 +7,7 @@ import type { IDbExecutor } from "../../shared/database/db-executor.interface";
  * SurrealDB Context - Tương tự MssqlDbContext nhưng cho SurrealDB
  * Hỗ trợ transaction thông qua AsyncLocalStorage
  */
-export class SurrealDbContext implements IDbExecutor {
+export class SurrealDbContext implements IDbExecutor<Surreal> {
   static transactionStorage = new AsyncLocalStorage<Surreal>();
   private reauthPromise: Promise<void> | null = null;
 

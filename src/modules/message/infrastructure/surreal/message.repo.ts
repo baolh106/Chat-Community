@@ -1,4 +1,4 @@
-import { RecordId, Table, Uuid } from "surrealdb";
+import { RecordId, Surreal, Table, Uuid } from "surrealdb";
 import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
 import { BadRequestError } from "../../../../shared/utils/error";
 import { ResponseMessage } from "../../constant/constant";
@@ -7,7 +7,21 @@ import type { IMessageRepository } from "../../domain/mesage.repository";
 import type { TMessage } from "../message.type";
 
 export class MessageRepo implements IMessageRepository {
-  constructor(private readonly pool: IDbExecutor) {}
+  constructor(private readonly pool: IDbExecutor<Surreal>) {}
+
+  async ensureReady(): Promise<void> {
+    await this.pool.execute(async (db) => {
+      // Đảm bảo bảng messages tồn tại
+      await db.query("DEFINE TABLE messages SCHEMALESS").catch(() => {});
+      
+      // Index quan trọng để load chat history nhanh
+      await db.query(`
+        DEFINE INDEX idx_sender ON messages FIELDS sender;
+        DEFINE INDEX idx_receiver ON messages FIELDS receiver;
+        DEFINE INDEX idx_createdAt ON messages FIELDS createdAt;
+      `).catch(() => {});
+    });
+  }
 
   async create(payload: PayloadMessage): Promise<void> {
     const userId = new RecordId("messages", Uuid.v4());

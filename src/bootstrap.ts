@@ -1,4 +1,4 @@
-import { surrealConfig } from "./config/database/database";
+import { mongoConfig, surrealConfig } from "./config/database/database";
 import { SurrealDbContext } from "./config/database/surrealDBContext";
 import type { IDbExecutor } from "./shared/database/db-executor.interface";
 import type { IEventBus } from "./infrastructure/event-bus/application/event-bus.interface";
@@ -22,32 +22,66 @@ import { MessageUserSocketNotifier } from "./modules/message/infrastructure/real
 import { MessageAdminTelegramNotifier } from "./modules/message/infrastructure/telegram/message-admin-telegram.notifier";
 import { messageModule } from "./modules/message/presentation/message.module";
 import { connectDB } from "./shared/database/surrealDB.connect";
+import { connectMongoClient } from "./shared/database/mongoDB.connect";
+import { MongoDbContext } from "./config/database/mongoDBContext";
+import { UnitOfWorkMongo } from "./infrastructure/UnitOfWork-Mongo";
+import type { IUnitOfWork } from "./infrastructure/IUnitOfWork";
+import { VideoCallTelegramHandler } from "./infrastructure/telegram/handlers/video-call-telegram.handler";
+import { GramJsCallService } from "./infrastructure/telegram/infrastructure/gramjs-call.service";
 
-export async function setupDatabase() {
+async function setupSurrealDB() {
   const db = await connectDB(surrealConfig);
   const dbContext = new SurrealDbContext(db, surrealConfig);
   const uow = new UnitOfWorkSurreal(dbContext);
   return { dbContext, uow };
 }
 
+async function setupMongoDB() {
+  const client = await connectMongoClient(mongoConfig);
+  const dbContext = new MongoDbContext(client, mongoConfig);
+  const uow = new UnitOfWorkMongo(dbContext.getConnection());
+  return { dbContext, uow };
+}
+
+export async function setupDatabase() {
+  return await setupMongoDB();
+}
+
 export async function setupModules(
   dbContext: IDbExecutor,
-  uow: UnitOfWorkSurreal,
+  uow: IUnitOfWork,
 ) {
   const { eventBus } = eventBusModule();
   const {
     messageApi,
     messageApp,
     sessionManager,
+    messageOutboxWorker,
+    outboxRepo,
+    messageRepo,
   } = messageModule(dbContext, uow, eventBus);
   const authApi = authModule(dbContext, eventBus).authApi;
+
+  // Ensure table ready before starting the application
+  await ensureDatabaseReady([
+    messageRepo, outboxRepo
+  ]);
 
   const routes = [
     { path: "/auth", router: authApi.api() },
     { path: "/message", router: messageApi.api() },
   ];
 
-  return { eventBus, routes, sessionManager, messageApp };
+  return { eventBus, routes, sessionManager, messageApp, messageOutboxWorker };
+}
+
+async function ensureDatabaseReady(schemas: any[]) {
+  try {
+    await Promise.all(schemas.map((repo) => repo.ensureReady()));
+  } catch (error) {
+    console.error("[Bootstrap] Error ensuring database readiness:", error);
+    throw error;
+  }
 }
 
 export async function setupSocket(
@@ -73,13 +107,17 @@ export function setupEventHandlers(
   telegramNotifier?: ITelegramNotifier,
 ) {
   // Register event handlers
-  const adminNotifier = new MessageAdminSocketNotifier(socketService);
-  const userNotifier = new MessageUserSocketNotifier(socketService);
+  // const adminNotifier = new MessageAdminSocketNotifier(socketService);
+  // const userNotifier = new MessageUserSocketNotifier(socketService);
   const messageToolNotifier = new MessageAdminTelegramNotifier(socketService, telegramNotifier);
   const userJoinedToolNotifier = new UserJoinedTelegramNotifier(telegramNotifier);
-  eventBus.register(new SendMessageSocketHandler(adminNotifier));
-  eventBus.register(new SendMessageSocketHandler(userNotifier));
+  // eventBus.register(new SendMessageSocketHandler(adminNotifier));
+  // eventBus.register(new SendMessageSocketHandler(userNotifier));
   eventBus.register(new SendMessageToolHandler(messageToolNotifier));
   eventBus.register(new UserJoinedToolHandler(userJoinedToolNotifier));
+  
+  // Register Video Call Handler
+  const telegramCallService = new GramJsCallService();
+  eventBus.register(new VideoCallTelegramHandler(telegramNotifier, telegramCallService));
 }
   

@@ -23,7 +23,7 @@ export class MessageCacheApplication implements IMessageApplication {
   public async createWithFile(
     _message: MessageCreate,
     _file: UploadFileInput,
-  ): Promise<void> {
+  ): Promise<MessageCreate> {
     throw new BadRequestError("File storage is not configured");
   }
 
