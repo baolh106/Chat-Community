@@ -3,10 +3,6 @@ import { formatKey } from "../shared/utils/format";
 
 dotenv.config();
 
-if (process.env.NODE_ENV) {
-  dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
-}
-
 export const port = process.env.PORT || 3000;
 
 const rawRedisUrl = (process.env.REDIS_URL ?? "").trim();
