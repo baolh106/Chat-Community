@@ -1,15 +1,13 @@
 import * as dotenv from "dotenv";
 import { formatKey } from "../shared/utils/format";
 
+// Nạp file .env mặc định trước
+dotenv.config();
+
 const envFile = `.env.${process.env.NODE_ENV || "development"}`;
 dotenv.config({ path: envFile });
 
-// Nếu không có file env cụ thể cho NODE_ENV hiện tại, fallback về development.
-if (process.env.NODE_ENV !== "development") {
-  dotenv.config({ path: ".env.development" });
-}
-
-export const port = process.env.PORT || 4000;
+export const port = process.env.PORT || 3000;
 
 const rawRedisUrl = (process.env.REDIS_URL ?? "").trim();
 const redisHost = (process.env.REDIS_HOST ?? "localhost").trim();
