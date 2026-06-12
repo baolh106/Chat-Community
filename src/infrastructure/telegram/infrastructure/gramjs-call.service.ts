@@ -1,5 +1,5 @@
 import { TelegramClient, Api } from "telegram";
-import { StringSession } from "telegram/sessions";
+import { StringSession } from "telegram/sessions/index.js";
 import type { ITelegramCallService } from "../application/telegram-call.service.interface";
 import { telegramAppHash, telegramAppId, telegramHelperSession } from "../../../config/env";
 

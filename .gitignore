@@ -7,7 +7,7 @@ build/
 *.tsbuildinfo
 
 # Environment (secrets — dùng .env.example để mẫu biến)
-.env
+*.env
 !.env.example
 
 # md file
