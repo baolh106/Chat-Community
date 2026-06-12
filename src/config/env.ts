@@ -1,11 +1,11 @@
 import * as dotenv from "dotenv";
 import { formatKey } from "../shared/utils/format";
 
-// Nạp file .env mặc định trước
 dotenv.config();
 
-const envFile = `.env.${process.env.NODE_ENV || "development"}`;
-dotenv.config({ path: envFile });
+if (process.env.NODE_ENV) {
+  dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
+}
 
 export const port = process.env.PORT || 3000;
 
