@@ -184,7 +184,7 @@ async function relayCallEvent(
 
 export function registerSocketCallSignalingGateway(
   io: Server,
-  eventBus?: IEventBusPublisher
+  eventBus?: IEventBusPublisher,
 ): void {
   io.on("connection", (socket) => {
     const s = socket as Socket & { data: SocketSessionData };
@@ -230,16 +230,21 @@ export function registerSocketCallSignalingGateway(
         body,
       );
 
-      // [NEW] Nếu User gọi Admin, bắn event để Telegram Bot/Helper thực hiện cuộc gọi thực
-      if (receiver === "admin" && s.data.role === "user" && eventBus) {
+      // User calls Telegram only when no admin socket receives the invite.
+      const shouldNotifyAdminViaTelegram =
+        receiver === "admin" &&
+        s.data.role === "user" &&
+        delivered === 0;
+
+      if (shouldNotifyAdminViaTelegram && eventBus) {
         void eventBus.publish(
           new VideoCallStartedEvent({
             callerId: caller!,
             callType: body.mediaType,
             adminTelegramId: telegramChatId,
             callId: body.callId,
-            timestamp: body.createdAt
-          } as VideoCallStartedEvent["payload"])
+            timestamp: body.createdAt,
+          } as VideoCallStartedEvent["payload"]),
         );
       }
 
