@@ -42,7 +42,7 @@ pipeline {
                     sh 'npm ci --omit=dev'
                     
                     echo '=== Khởi động / Tái khởi động ứng dụng bằng PM2 ==='
-                    sh "pm2 reload ${env.PM2_APP_NAME} --update-env || pm2 start dist/main.js --name ${env.PM2_APP_NAME}"
+                    sh "pm2 reload ${env.PM2_APP_NAME} --update-env || pm2 start dist/index.js --name ${env.PM2_APP_NAME}"
                     
                     sh 'pm2 save'
                 }
