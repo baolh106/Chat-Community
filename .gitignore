@@ -13,6 +13,7 @@ build/
 # md file
 *.md
 !README.md
+!ARCHITECTURE.md
 
 # Logs & runtime
 logs/
