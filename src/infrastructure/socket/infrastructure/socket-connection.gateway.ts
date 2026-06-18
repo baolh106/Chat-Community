@@ -280,7 +280,8 @@ export function registerSocketConnectionGateway(
                 fileName: m.fileName,
                 fileMimeType: m.fileMimeType,
                 fileSize: m.fileSize,
-                attachmentType: m.attachmentType
+                attachmentType: m.attachmentType,
+                isUnsafe: m.isUnsafe
               }))
             };
 

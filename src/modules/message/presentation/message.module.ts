@@ -11,6 +11,7 @@ import { SessionManager } from "../application/session-manager";
 import { GoogleDriveFileStorage } from "../../../infrastructure/google-drive/google-drive-file-storage";
 import { MessageRepo } from "../infrastructure/mongo/message.repo";
 import { MessageOutboxRepo } from "../infrastructure/mongo/message-outbox.repo";
+import { NudeNetDetectorService } from "../../../infrastructure/client/nudenet-detector.service";
 
 export const messageModule = (
   dbExecutor: IDbExecutor,
@@ -27,12 +28,14 @@ export const messageModule = (
     eventBus,
     sessionCache,
   );
+  const nudeNetDetectorService = new NudeNetDetectorService();
   const messageApp = new MessageApplication(
     messageRepo,
     uow,
     outboxRepo,
     sessionCache,
     fileStorage,
+    nudeNetDetectorService,
   );
   const messageApi = new MessageAPI(messageApp);
   return {
