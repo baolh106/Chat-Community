@@ -14,4 +14,5 @@ export type MessageCreate = {
   sender: string;
   receiver: string;
   isRead?: boolean | undefined;
+  isUnsafe?: boolean | undefined;
 };

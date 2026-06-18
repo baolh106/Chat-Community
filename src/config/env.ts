@@ -97,3 +97,7 @@ export const jwtAccessTokenExpiresIn =
   process.env.JWT_ACCESS_TOKEN_EXPIRES_IN ?? "15m";
 export const jwtRefreshTokenExpiresIn =
   process.env.JWT_REFRESH_TOKEN_EXPIRES_IN ?? "7d";
+
+/** Image Detector Service AI */
+export const detectorServiceUrl = (process.env.IMAGE_DETECTOR_SERVICE_URL ?? "").trim();
+export const imageDetectorApiKey = (process.env.API_KEY_IMAGE_DETECTOR_SERVICE ?? "").trim();

@@ -1,3 +1,4 @@
+import type { IImageDetectorService } from "../../../infrastructure/client/image-detector.interface";
 import type { IUnitOfWork } from "../../../infrastructure/IUnitOfWork";
 import { BadRequestError } from "../../../shared/utils/error";
 import type { IMessageRepository } from "../domain/mesage.repository";
@@ -18,6 +19,7 @@ export class MessageApplication implements IMessageApplication {
     private readonly _outboxRepo: IMessageOutboxRepository,
     private readonly _sessionCache?: IMessageSessionCache,
     private readonly _fileStorage?: IFileStorage,
+    private readonly _imageDetector?: IImageDetectorService,
   ) {}
 
   public async create(message: MessageCreate) {
@@ -39,6 +41,17 @@ export class MessageApplication implements IMessageApplication {
 
     const storedFile = await this._fileStorage.upload(file);
     const fullMessage = this.attachStoredFile(message, storedFile);
+
+    // Logic kiểm duyệt nếu là ảnh
+    if (this._imageDetector && fullMessage.imageURL) {
+       try {
+         const result = await this._imageDetector.scanImage(fullMessage.imageURL);
+         fullMessage.isUnsafe = !!result.data?.is_toxic;
+       } catch (error) {
+         console.error("[MessageApplication] Image detection service error:", error);
+       }
+    }
+
     await this.create(fullMessage);
     return fullMessage;
   }
