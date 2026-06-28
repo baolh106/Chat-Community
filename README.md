@@ -77,3 +77,20 @@ graph TD
 npm install
 npm run dev
 ```
+
+## Monitoring
+
+Ứng dụng expose Prometheus metrics tại `GET /metrics` khi
+`METRICS_ENABLED=true`.
+
+```bash
+npm run dev
+npm run monitoring:up
+```
+
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3001 (`admin` / `admin`)
+- Dashboard: `Chat Community / Chat Community Overview`
+
+Prometheus mặc định scrape API qua `host.docker.internal:3000`, phù hợp khi app
+Node.js chạy trên máy host và Prometheus chạy trong Docker Desktop.

@@ -7,6 +7,7 @@ import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
 import { corsOrigin, nodeEnv } from "../../config/env";
+import { setupMonitoring } from "../../infrastructure/monitoring/metrics";
 import {
   errorHandler,
   notFoundHandler,
@@ -36,6 +37,7 @@ export class App {
     this.app.use(compression());
     this.app.use(morgan("dev"));
     this.app.use(helmet());
+    setupMonitoring(this.app);
     this.router = express.Router();
     this.app.use(this.router);
     this.router.get("/", (req, res) => {

@@ -87,6 +87,9 @@ export const uploadMaxFileSizeMb = Number(
 
 export const nodeEnv = process.env.NODE_ENV ?? "development";
 export const corsOrigin = (process.env.CORS_ORIGIN ?? "").trim();
+export const metricsEnabled =
+  (process.env.METRICS_ENABLED ?? "true").toLowerCase() !== "false";
+export const metricsPath = (process.env.METRICS_PATH ?? "/metrics").trim();
 
 /** RSA Keys cho JWT RS256 signing. */
 export const privateKey = formatKey(process.env.PRIVATE_KEY);
