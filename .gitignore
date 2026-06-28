@@ -38,3 +38,7 @@ Thumbs.db
 
 # Optional: bỏ comment nếu muốn commit cấu hình chung cho team
 # .vscode/
+
+#codebase memory graph
+.codebase-memory
+.continue
