@@ -1,3 +1,5 @@
+import type { MessageAttachment } from "../domain/entities/message-attachment";
+
 export type TMessage = {
   content: string | null;
   imageURL: string | null;
@@ -8,6 +10,8 @@ export type TMessage = {
   fileSize: number | null;
   fileDriveId: string | null;
   attachmentType: "image" | "file" | null;
+  attachments: MessageAttachment[] | null;
+  isUnsafe: boolean | null;
   createdAt: Date;
   sender: string;
   receiver: string;

@@ -1,13 +1,14 @@
 import axios, { type AxiosInstance } from "axios";
-import type { IImageDetectorService } from "./image-detector.interface";
-import type { ImageDetectorResponse } from "./image-detector.interface";
 import { detectorServiceUrl, imageDetectorApiKey } from "../../config/env";
+import type {
+  IImageDetectorService,
+  ImageDetectorResponse,
+} from "../../modules/message/application/ports/image-detector.port";
 
 export class NudeNetDetectorService implements IImageDetectorService {
   private readonly client: AxiosInstance;
 
-  constructor(
-  ) {
+  constructor() {
     this.client = axios.create({
       baseURL: detectorServiceUrl,
       headers: {
@@ -29,12 +30,12 @@ export class NudeNetDetectorService implements IImageDetectorService {
       console.error("[NudeNetDetectorService] Error scanning image:", {
         message: error.message,
         response: error.response?.data,
-        imageUrl,
       });
-      
+
       throw new Error(
-        error.response?.data?.message || 
-        "Failed to communicate with image detection service"
+        error.response?.data?.message ||
+          "Failed to communicate with image detection service",
+        { cause: error },
       );
     }
   }

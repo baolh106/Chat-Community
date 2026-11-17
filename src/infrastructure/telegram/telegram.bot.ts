@@ -5,9 +5,20 @@ import { getTemplate } from "./telegram-templates";
 
 export class TelegramBotListener {
   private bot: Telegraf;
+  private launched = false;
 
   constructor(private readonly telegramNotifier?: ITelegramNotifier) {
     this.bot = new Telegraf(telegramBotToken);
+  }
+
+  stop(reason: string = "shutdown"): void {
+    if (!this.launched) return;
+    this.launched = false;
+    try {
+      this.bot.stop(reason);
+    } catch (error) {
+      console.error("[TelegramBotListener] Failed to stop bot:", error);
+    }
   }
 
   async start(): Promise<void> {
@@ -33,7 +44,7 @@ Available commands:
 /help - Show available commands
 
 📝 Usage:
-Type <code>/voting</code> to start creating a poll with predefined options.
+Type <code>/poll_badminton</code> or <code>/poll_boardgame</code> to create a poll with predefined options.
       `;
       ctx.replyWithHTML(startMessage);
     });
@@ -143,11 +154,10 @@ When you send /poll_boardgame, a poll will be created with predefined voting opt
     });
     
 
-    // Handle regular messages
     this.bot.on("message", async (ctx) => {
       try {
         const notifier = this.telegramNotifier;
-        if (!notifier) {
+        if (!notifier || ctx.chat.type !== "private") {
           return;
         }
 
@@ -164,7 +174,7 @@ When you send /poll_boardgame, a poll will be created with predefined voting opt
           message: String(messageText),
         });
 
-        console.log(`[TelegramBotListener] Received message from bot user ${username} (${userId}): ${messageText}`);
+        console.log(`[TelegramBotListener] Received private message from ${username} (${userId})`);
         await notifier.sendMessage(text, { parseMode });
       } catch (error) {
         console.error(
@@ -174,7 +184,12 @@ When you send /poll_boardgame, a poll will be created with predefined voting opt
       }
     });
 
-    await this.bot.launch();
-    console.log("[TelegramBotListener] started listening for bot messages.");
+    this.launched = true;
+    console.log("[TelegramBotListener] starting long polling...");
+    try {
+      await this.bot.launch();
+    } finally {
+      this.launched = false;
+    }
   }
 }

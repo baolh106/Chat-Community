@@ -1,19 +1,32 @@
 import type { IEventBusPublisher } from "../../../infrastructure/event-bus/application/event-bus-publisher.interface";
+import { conversationKeyOf } from "../domain/conversation";
 import { MessageCreatedEvent } from "../domain/events/message-created.event";
-import type { IMessageOutboxRepository } from "../domain/message-outbox.repository";
-import type { IMessageSessionCache } from "../infrastructure/cache/message-session.cache";
-import type { MessageCreate } from "./dtos/param";
+import type {
+  IMessageOutboxRepository,
+  MessageOutboxRecord,
+} from "../domain/message-outbox.repository";
+import type { IMessageSessionCache } from "./ports/message-session-cache.port";
 
 export type MessageOutboxWorkerOptions = {
   intervalMs?: number;
   batchSize?: number;
+  maxAttempts?: number;
+  baseBackoffMs?: number;
+  maxBackoffMs?: number;
+  lockMs?: number;
+  now?: () => Date;
 };
 
 export class MessageOutboxWorker {
   private timer: NodeJS.Timeout | undefined;
-  private isProcessing = false;
+  private running: Promise<void> | null = null;
   private readonly intervalMs: number;
   private readonly batchSize: number;
+  private readonly maxAttempts: number;
+  private readonly baseBackoffMs: number;
+  private readonly maxBackoffMs: number;
+  private readonly lockMs: number;
+  private readonly now: () => Date;
 
   constructor(
     private readonly outboxRepo: IMessageOutboxRepository,
@@ -23,6 +36,11 @@ export class MessageOutboxWorker {
   ) {
     this.intervalMs = options.intervalMs ?? 1000;
     this.batchSize = options.batchSize ?? 25;
+    this.maxAttempts = options.maxAttempts ?? 10;
+    this.baseBackoffMs = options.baseBackoffMs ?? 1000;
+    this.maxBackoffMs = options.maxBackoffMs ?? 5 * 60 * 1000;
+    this.lockMs = options.lockMs ?? 60 * 1000;
+    this.now = options.now ?? (() => new Date());
   }
 
   async start(): Promise<void> {
@@ -30,7 +48,6 @@ export class MessageOutboxWorker {
       return;
     }
 
-    // Đảm bảo table sẵn sàng trước khi bắt đầu polling vòng lặp đầu tiên
     try {
       await this.outboxRepo.ensureReady();
     } catch (err) {
@@ -44,51 +61,86 @@ export class MessageOutboxWorker {
     this.timer.unref?.();
   }
 
-  stop(): void {
-    if (!this.timer) {
-      return;
+  async stop(): Promise<void> {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = undefined;
     }
-
-    clearInterval(this.timer);
-    this.timer = undefined;
+    await this.running;
   }
 
   async processPending(): Promise<void> {
-    if (this.isProcessing) {
+    if (this.running) {
       return;
     }
 
-    this.isProcessing = true;
+    this.running = this.processBatch().finally(() => {
+      this.running = null;
+    });
+    await this.running;
+  }
+
+  backoffMs(attempt: number): number {
+    const exp = this.baseBackoffMs * 2 ** Math.max(0, attempt - 1);
+    return Math.min(this.maxBackoffMs, exp);
+  }
+
+  private async processBatch(): Promise<void> {
+    let events: MessageOutboxRecord[];
     try {
-      const events = await this.outboxRepo.getPending(this.batchSize);
-      for (const event of events) {
-        try {
-          await this.eventBus.publish(new MessageCreatedEvent(event.payload));
-          await this.appendCacheBestEffort(event.payload);
-          await this.outboxRepo.markProcessed(event.eventId);
-        } catch (error) {
-          await this.outboxRepo.markFailed(event.eventId, error);
-          console.error(
-            `[MessageOutboxWorker] Failed to process event=${event.eventId}`,
-            error,
-          );
-        }
-      }
-    } finally {
-      this.isProcessing = false;
+      events = await this.outboxRepo.claimPending(this.batchSize, this.lockMs);
+    } catch (error) {
+      console.error("[MessageOutboxWorker] Failed to claim pending events:", error);
+      return;
+    }
+
+    for (const event of events) {
+      await this.processOne(event);
     }
   }
 
-  private async appendCacheBestEffort(message: MessageCreate): Promise<void> {
+  private async processOne(event: MessageOutboxRecord): Promise<void> {
+    try {
+      await this.eventBus.publish(new MessageCreatedEvent(event.payload, event.eventId));
+      await this.appendCacheBestEffort(event);
+      await this.outboxRepo.markProcessed(event.eventId);
+    } catch (error) {
+      const attempt = (event.attempts ?? 0) + 1;
+      const isDead = attempt >= this.maxAttempts;
+      const retryAt = isDead
+        ? null
+        : new Date(this.now().getTime() + this.backoffMs(attempt));
+
+      console.error(
+        `[MessageOutboxWorker] Failed to process event=${event.eventId} attempt=${attempt}/${this.maxAttempts}` +
+          (isDead ? " → dead-letter" : ` → retry at ${retryAt!.toISOString()}`),
+        error,
+      );
+
+      try {
+        await this.outboxRepo.markFailed(event.eventId, error, retryAt);
+      } catch (markError) {
+        console.error(
+          `[MessageOutboxWorker] Failed to record failure for event=${event.eventId}`,
+          markError,
+        );
+      }
+    }
+  }
+
+  private async appendCacheBestEffort(event: MessageOutboxRecord): Promise<void> {
     if (!this.sessionCache) {
       return;
     }
 
-    const conversationKey =
-      message.sender === "admin" ? message.receiver : message.sender;
+    const message = {
+      ...event.payload,
+      id: event.payload.id ?? event.eventId,
+    };
+    const conversationKey = conversationKeyOf(message);
 
     try {
-      await this.sessionCache.appendMessage(conversationKey, message);
+      await this.sessionCache.appendMessages(conversationKey, [message]);
     } catch (error) {
       console.error(
         `[MessageOutboxWorker] Failed to append Redis session cache for conversation=${conversationKey}`,

@@ -1,14 +1,32 @@
-import { createTelegramNotifier, TelegramNotifier } from "../telegram.notifier";
+import type * as NotifierModule from "../telegram.notifier";
 
-// Test createTelegramNotifier with default env configuration
+function loadWithEnv(env: { telegramBotToken: string; telegramChatId: string }) {
+  let mod: typeof NotifierModule | undefined;
+  jest.isolateModules(() => {
+    jest.doMock("../../../../config/env", () => env);
+    jest.doMock("telegraf", () => ({ Telegraf: jest.fn(() => ({ telegram: {} })) }));
+    mod = jest.requireActual("../telegram.notifier");
+  });
+  return mod!;
+}
+
 describe("createTelegramNotifier", () => {
-  it("should return TelegramNotifier when env vars are configured (default test setup)", () => {
-    const notifier = createTelegramNotifier();
-
-    expect(notifier).toBeInstanceOf(TelegramNotifier);
+  afterEach(() => {
+    jest.resetModules();
   });
 
-  // Note: Testing different env configurations requires complex mocking
-  // For now, we test the happy path. In production, the env vars control
-  // whether TelegramNotifier or NoopTelegramNotifier is returned.
+  it("should return TelegramNotifier when token and chat id are configured", () => {
+    const mod = loadWithEnv({ telegramBotToken: "t", telegramChatId: "c" });
+    expect(mod.createTelegramNotifier()).toBeInstanceOf(mod.TelegramNotifier);
+  });
+
+  it("should return NoopTelegramNotifier when token is missing", () => {
+    const mod = loadWithEnv({ telegramBotToken: "", telegramChatId: "c" });
+    expect(mod.createTelegramNotifier()).toBeInstanceOf(mod.NoopTelegramNotifier);
+  });
+
+  it("should return NoopTelegramNotifier when chat id is missing", () => {
+    const mod = loadWithEnv({ telegramBotToken: "t", telegramChatId: "" });
+    expect(mod.createTelegramNotifier()).toBeInstanceOf(mod.NoopTelegramNotifier);
+  });
 });

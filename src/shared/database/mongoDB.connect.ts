@@ -2,8 +2,15 @@ import { MongoClient, ServerApiVersion } from "mongodb";
 import dns from "node:dns";
 import { withRetry } from "../utils/retry";
 import type { MongoDBConfig } from "../../config/database/database";
+import { mongoDnsServers } from "../../config/env";
 
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
+function applyDnsOverride(): void {
+  if (mongoDnsServers.length === 0) return;
+  dns.setServers(mongoDnsServers);
+  console.warn(
+    `[MongoDB] Process-wide DNS servers overridden: ${mongoDnsServers.join(", ")}`,
+  );
+}
 
 function buildConnectionString(config: MongoDBConfig): string {
   const { protocol, cluster, username, password, dbName } = config;
@@ -20,8 +27,9 @@ function buildConnectionString(config: MongoDBConfig): string {
 }
 
 export async function connectMongoClient(config: MongoDBConfig): Promise<MongoClient> {
+  applyDnsOverride();
   const uri = buildConnectionString(config);
-  
+
   const client = new MongoClient(uri, {
     serverApi: {
       version: ServerApiVersion.v1,

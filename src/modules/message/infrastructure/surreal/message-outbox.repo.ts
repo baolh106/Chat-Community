@@ -1,13 +1,13 @@
-import { RecordId, Surreal, Table } from "surrealdb";
-import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
-import type {
-  IMessageOutboxRepository,
-  MessageOutboxRecord,
-} from "../../domain/message-outbox.repository";
-import { MESSAGE_OUTBOX_EVENT_TYPE } from "../../domain/message-outbox.repository";
-import type { MessageCreate } from "../../application/dtos/param";
-import { internalEvents, OUTBOX_NOTIFY_EVENT } from "../../../../infrastructure/socket/application/internal-event-emitter";
 import { randomUUID } from "node:crypto";
+import { RecordId } from "surrealdb";
+import type { Surreal } from "surrealdb";
+import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
+import type { PayloadMessage } from "../../domain/dtos/payloadMessage.dto";
+import {
+  MESSAGE_OUTBOX_EVENT_TYPE,
+  type IMessageOutboxRepository,
+  type MessageOutboxRecord,
+} from "../../domain/message-outbox.repository";
 
 type TMessageOutbox = Omit<MessageOutboxRecord, "id">;
 
@@ -16,27 +16,26 @@ export class MessageOutboxRepo implements IMessageOutboxRepository {
 
   async ensureReady(): Promise<void> {
     await this.pool.execute(async (db) => {
-      // Đảm bảo table tồn tại (SCHEMALESS)
       await db.query("DEFINE TABLE message_outbox SCHEMALESS").catch(() => {});
-
-      // Định nghĩa index để tối ưu truy vấn cho Worker (status và createdAt)
-      await db.query(`
+      await db
+        .query(
+          `
         DEFINE INDEX idx_status ON message_outbox FIELDS status;
         DEFINE INDEX idx_createdAt ON message_outbox FIELDS createdAt;
-      `).catch(() => {});
-      
-      console.log("[MessageOutboxRepo] Table 'message_outbox' is ready.");
+        DEFINE INDEX idx_eventId ON message_outbox FIELDS eventId UNIQUE;
+      `,
+        )
+        .catch(() => {});
     });
   }
 
-  async createMessageCreated(payload: MessageCreate): Promise<void> {
+  async createMessageCreated(payload: PayloadMessage): Promise<void> {
     const eventId = randomUUID();
-    const recordId = new RecordId("message_outbox", eventId);
     const now = new Date();
 
     await this.pool.execute(async (db) => {
       await db
-        .create<TMessageOutbox>(recordId)
+        .create<TMessageOutbox>(new RecordId("message_outbox", eventId))
         .content({
           eventId,
           type: MESSAGE_OUTBOX_EVENT_TYPE.MESSAGE_CREATED,
@@ -46,52 +45,55 @@ export class MessageOutboxRepo implements IMessageOutboxRepository {
               payload.createdAt instanceof Date
                 ? payload.createdAt.toISOString()
                 : payload.createdAt,
-          } as unknown as MessageCreate,
+          } as unknown as PayloadMessage,
           status: "pending",
           attempts: 0,
           createdAt: now,
           updatedAt: now,
+          nextAttemptAt: now,
+          lockedUntil: null,
           processedAt: null,
           lastError: null,
-        })
-        .then(() => {
-          // Đánh thức Worker ngay lập tức sau khi lưu thành công
-          internalEvents.emit(OUTBOX_NOTIFY_EVENT);
         });
     });
   }
 
-  async getPending(limit: number): Promise<MessageOutboxRecord[]> {
+  async claimPending(limit: number, lockMs: number): Promise<MessageOutboxRecord[]> {
     return await this.pool.execute(async (db) => {
-      try {
-        const result = await db.query<[MessageOutboxRecord[]]>(
-          `SELECT * FROM message_outbox
-           WHERE status = "pending"
-           ORDER BY createdAt ASC
-           LIMIT $limit`,
-          { limit },
-        );
+      const now = new Date();
+      const candidates = await db.query<[Array<{ id: RecordId }>]>(
+        `SELECT id, createdAt FROM message_outbox
+         WHERE (status = "pending" AND (nextAttemptAt = NONE OR nextAttemptAt = NULL OR nextAttemptAt <= $now))
+            OR (status = "processing" AND lockedUntil < $now)
+         ORDER BY createdAt ASC
+         LIMIT $limit`,
+        { now, limit },
+      );
 
-        return (result[0] ?? []).map((record) => ({
+      const claimed: MessageOutboxRecord[] = [];
+      for (const candidate of candidates[0] ?? []) {
+        const updated = await db.query<[MessageOutboxRecord[]]>(
+          `UPDATE $id SET status = "processing", lockedUntil = $lockedUntil, updatedAt = $now
+           WHERE (status = "pending" AND (nextAttemptAt = NONE OR nextAttemptAt = NULL OR nextAttemptAt <= $now))
+              OR (status = "processing" AND lockedUntil < $now)
+           RETURN AFTER`,
+          {
+            id: candidate.id,
+            now,
+            lockedUntil: new Date(now.getTime() + lockMs),
+          },
+        );
+        const record = updated[0]?.[0];
+        if (!record) continue;
+        claimed.push({
           ...record,
           payload: {
             ...record.payload,
-            createdAt:
-              record.payload.createdAt instanceof Date
-                ? record.payload.createdAt
-                : new Date(record.payload.createdAt),
+            createdAt: new Date(record.payload.createdAt),
           },
-        }));
-      } catch (error: any) {
-        // Kiểm tra nếu lỗi do bảng chưa tồn tại
-        if (String(error).toLowerCase().includes("table 'message_outbox' does not exist")) {
-          // Định nghĩa bảng để tránh lỗi cho các lần polling tiếp theo
-          await db.query("DEFINE TABLE message_outbox SCHEMALESS").catch(() => {});
-          // Trả về batch rỗng như yêu cầu
-          return [];
-        }
-        throw error;
+        });
       }
+      return claimed;
     });
   }
 
@@ -102,35 +104,32 @@ export class MessageOutboxRepo implements IMessageOutboxRepository {
          SET status = "processed",
              processedAt = time::now(),
              updatedAt = time::now(),
-             lastError = null
+             lockedUntil = NULL,
+             lastError = NULL
          WHERE eventId = $eventId`,
         { eventId },
       );
     });
   }
 
-  async markFailed(eventId: string, error: unknown): Promise<void> {
+  async markFailed(eventId: string, error: unknown, retryAt: Date | null): Promise<void> {
     await this.pool.execute(async (db) => {
       await db.query(
         `UPDATE message_outbox
-         SET status = "pending",
+         SET status = $status,
              attempts += 1,
+             nextAttemptAt = $retryAt,
+             lockedUntil = NULL,
              updatedAt = time::now(),
              lastError = $lastError
          WHERE eventId = $eventId`,
         {
           eventId,
-          lastError: this.formatError(error),
+          status: retryAt ? "pending" : "failed",
+          retryAt,
+          lastError: error instanceof Error ? error.message : String(error),
         },
       );
     });
-  }
-
-  private formatError(error: unknown): string {
-    if (error instanceof Error) {
-      return error.message;
-    }
-
-    return String(error);
   }
 }

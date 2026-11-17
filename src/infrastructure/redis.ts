@@ -3,9 +3,17 @@ import type { StringValue } from "ms";
 import { redisUrl } from "../config/env";
 import ms from "ms";
 
+const INCR_WITH_TTL_SCRIPT = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return { count, redis.call('TTL', KEYS[1]) }
+`;
+
 export class RedisClient {
   private readonly client: ReturnType<typeof createClient>;
-  private connected = false;
+  private connecting: Promise<void> | null = null;
 
   constructor(
     url: string = redisUrl,
@@ -26,7 +34,7 @@ export class RedisClient {
     }
 
     if (typeof ttl === "number") {
-      return ttl;
+      return Math.max(1, Math.floor(ttl));
     }
 
     const parsed = ms(ttl as StringValue);
@@ -38,28 +46,31 @@ export class RedisClient {
   }
 
   async connect(): Promise<void> {
-    if (this.connected) {
+    if (this.client.isOpen) {
       return;
     }
-
-    await this.client.connect();
-    this.connected = true;
+    if (!this.connecting) {
+      this.connecting = this.client
+        .connect()
+        .then(() => undefined)
+        .finally(() => {
+          this.connecting = null;
+        });
+    }
+    await this.connecting;
   }
 
   async disconnect(): Promise<void> {
-    if (!this.connected) {
+    if (!this.client.isOpen) {
       return;
     }
-
-    await this.client.disconnect();
-    this.connected = false;
+    await this.client.close();
   }
 
   async set(key: string, value: string, ttl?: string | number): Promise<void> {
     await this.connect();
-    const expiresIn = this.parseTtl(ttl);
     await this.client.set(key, value, {
-      EX: expiresIn,
+      EX: this.parseTtl(ttl),
     });
   }
 
@@ -68,9 +79,9 @@ export class RedisClient {
     return this.client.get(key);
   }
 
-  async del(key: string): Promise<number> {
+  async del(...keys: string[]): Promise<number> {
     await this.connect();
-    return this.client.del(key);
+    return this.client.del(keys);
   }
 
   async exists(key: string): Promise<boolean> {
@@ -81,6 +92,38 @@ export class RedisClient {
   async ttl(key: string): Promise<number> {
     await this.connect();
     return this.client.ttl(key);
+  }
+
+  async lrange(key: string, start: number, stop: number): Promise<string[]> {
+    await this.connect();
+    return this.client.lRange(key, start, stop);
+  }
+
+  async hgetall(key: string): Promise<Record<string, string>> {
+    await this.connect();
+    return (await this.client.hGetAll(key)) as Record<string, string>;
+  }
+
+  async eval(
+    script: string,
+    keys: string[],
+    args: Array<string | number>,
+  ): Promise<unknown> {
+    await this.connect();
+    return this.client.eval(script, {
+      keys,
+      arguments: args.map(String),
+    });
+  }
+
+  async incrWithTtl(
+    key: string,
+    ttl: string | number,
+  ): Promise<{ count: number; ttlSeconds: number }> {
+    const result = (await this.eval(INCR_WITH_TTL_SCRIPT, [key], [
+      this.parseTtl(ttl),
+    ])) as [number, number];
+    return { count: Number(result[0]), ttlSeconds: Number(result[1]) };
   }
 
   async setJson<T>(
@@ -107,11 +150,6 @@ export class RedisClient {
       );
       return null;
     }
-  }
-
-  async keys(pattern: string): Promise<string[]> {
-    await this.connect();
-    return this.client.keys(pattern);
   }
 }
 

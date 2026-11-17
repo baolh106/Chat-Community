@@ -1,4 +1,5 @@
-import { MongoClient, ClientSession } from "mongodb";
+import type { MongoClient} from "mongodb";
+import { ClientSession } from "mongodb";
 import type { IUnitOfWork } from "./IUnitOfWork";
 import { MongoDbContext } from "../config/database/mongoDBContext";
 
