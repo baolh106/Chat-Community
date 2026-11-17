@@ -1,5 +1,5 @@
 import argon2 from "argon2";
-import { Db } from "mongodb";
+import type { Db } from "mongodb";
 import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
 import type { IAdminInfrastructure } from "../../domain/admin.infra";
 

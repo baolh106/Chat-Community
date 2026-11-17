@@ -1,3 +1,4 @@
+import type { AuthClaims } from "../../../shared/auth/auth-claims";
 import type {
   TokenResponse,
   UserSessionStartRequest,
@@ -5,7 +6,7 @@ import type {
 
 export interface IAuthApplication {
   startUserSession(req: UserSessionStartRequest): Promise<TokenResponse>;
-  endUserSession(userId: string): Promise<void>;
-  loginAdmin(password: string): Promise<TokenResponse>;
+  endUserSession(claims: AuthClaims): Promise<void>;
+  loginAdmin(password: string, clientKey: string): Promise<TokenResponse>;
   refreshToken(refreshToken: string): Promise<TokenResponse>;
 }

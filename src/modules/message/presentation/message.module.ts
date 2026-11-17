@@ -1,43 +1,60 @@
-import type { IDbExecutor } from "../../../shared/database/db-executor.interface";
-import type { IUnitOfWork } from "../../../infrastructure/IUnitOfWork";
-import type { IEventBus } from "../../../infrastructure/event-bus/application/event-bus.interface";
-import { MessageAPI } from "../api/message";
-import { MessageApplication } from "../application/message.application";
-import { MessageOutboxWorker } from "../application/message-outbox.worker";
-// import { MessageRepo } from "../infrastructure/surreal/message.repo";
-// import { MessageOutboxRepo } from "../infrastructure/surreal/message-outbox.repo";
-import { MessageSessionCache } from "../infrastructure/cache/message-session.cache";
-import { SessionManager } from "../application/session-manager";
-import { GoogleDriveFileStorage } from "../../../infrastructure/google-drive/google-drive-file-storage";
-import { MessageRepo } from "../infrastructure/mongo/message.repo";
-import { MessageOutboxRepo } from "../infrastructure/mongo/message-outbox.repo";
+import type { RequestHandler } from "express";
+import {
+  uploadMaxFileSizeMb,
+  uploadMaxFilesPerMessage,
+} from "../../../config/env";
 import { NudeNetDetectorService } from "../../../infrastructure/client/nudenet-detector.service";
+import type { IEventBus } from "../../../infrastructure/event-bus/application/event-bus.interface";
+import { GoogleDriveFileStorage } from "../../../infrastructure/google-drive/google-drive-file-storage";
+import type { IUnitOfWork } from "../../../infrastructure/IUnitOfWork";
+import type { RedisClient } from "../../../infrastructure/redis";
+import type { IDbExecutor } from "../../../shared/database/db-executor.interface";
+import { MessageAPI } from "../api/message";
+import { MessageOutboxWorker } from "../application/message-outbox.worker";
+import { MessageApplication } from "../application/message.application";
+import type { ISessionRevoker } from "../application/ports/session-revoker.port";
+import { SessionManager } from "../application/session-manager";
+import { MessageSessionCache } from "../infrastructure/cache/message-session.cache";
+import { MessageOutboxRepo } from "../infrastructure/mongo/message-outbox.repo";
+import { MessageRepo } from "../infrastructure/mongo/message.repo";
 
-export const messageModule = (
-  dbExecutor: IDbExecutor,
-  uow: IUnitOfWork,
-  eventBus: IEventBus,
-) => {
-  const messageRepo = new MessageRepo(dbExecutor);
-  const outboxRepo = new MessageOutboxRepo(dbExecutor);
-  const sessionCache = new MessageSessionCache();
-  const fileStorage = new GoogleDriveFileStorage();
-  const sessionManager = new SessionManager(sessionCache);
+export type MessageModuleDeps = {
+  dbExecutor: IDbExecutor;
+  uow: IUnitOfWork;
+  eventBus: IEventBus;
+  redis: RedisClient;
+  requireAuth: RequestHandler;
+  sessionRevoker?: ISessionRevoker;
+};
+
+export const messageModule = (deps: MessageModuleDeps) => {
+  const limits = {
+    maxFileSizeBytes: uploadMaxFileSizeMb * 1024 * 1024,
+    maxFilesPerMessage: uploadMaxFilesPerMessage,
+  };
+
+  const messageRepo = new MessageRepo(deps.dbExecutor);
+  const outboxRepo = new MessageOutboxRepo(deps.dbExecutor);
+  const sessionCache = new MessageSessionCache(deps.redis);
+  const sessionManager = new SessionManager(sessionCache, deps.sessionRevoker);
   const messageOutboxWorker = new MessageOutboxWorker(
     outboxRepo,
-    eventBus,
+    deps.eventBus,
     sessionCache,
   );
-  const nudeNetDetectorService = new NudeNetDetectorService();
   const messageApp = new MessageApplication(
-    messageRepo,
-    uow,
-    outboxRepo,
-    sessionCache,
-    fileStorage,
-    nudeNetDetectorService,
+    {
+      messageRepo,
+      uow: deps.uow,
+      outboxRepo,
+      sessionCache,
+      fileStorage: new GoogleDriveFileStorage(),
+      imageDetector: new NudeNetDetectorService(),
+    },
+    limits,
   );
-  const messageApi = new MessageAPI(messageApp);
+  const messageApi = new MessageAPI(messageApp, deps.requireAuth, limits);
+
   return {
     messageApi,
     messageApp,

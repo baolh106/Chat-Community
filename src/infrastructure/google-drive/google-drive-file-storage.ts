@@ -1,5 +1,5 @@
 import { createSign } from "node:crypto";
-import { BadRequestError } from "../../shared/utils/error";
+import { AppError } from "../../shared/utils/error";
 import type {
   IFileStorage,
   StoredFile,
@@ -41,6 +41,12 @@ const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 const DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 
+class FileStorageError extends AppError {
+  constructor(message: string) {
+    super(message, 502, "FILE_STORAGE_ERROR", false);
+  }
+}
+
 function hasOAuthConfig(): boolean {
   return Boolean(
     googleDriveOAuthClientId &&
@@ -65,7 +71,7 @@ function parseServiceAccount(): Required<GoogleServiceAccount> {
         googleDriveServiceAccountJson,
       ) as GoogleServiceAccount;
     } catch {
-      throw new BadRequestError("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON is invalid");
+      throw new FileStorageError("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON is invalid");
     }
     if (parsed.client_email && parsed.private_key) {
       return {
@@ -81,7 +87,7 @@ function parseServiceAccount(): Required<GoogleServiceAccount> {
     };
   }
 
-  throw new BadRequestError("Google Drive storage is not configured");
+  throw new FileStorageError("Google Drive storage is not configured");
 }
 
 function getFileType(mimeType: string): StoredFile["type"] {
@@ -96,7 +102,7 @@ export class GoogleDriveFileStorage implements IFileStorage {
 
   async upload(file: UploadFileInput): Promise<StoredFile> {
     if (!this.folderId) {
-      throw new BadRequestError("GOOGLE_DRIVE_FOLDER_ID is missing");
+      throw new FileStorageError("GOOGLE_DRIVE_FOLDER_ID is missing");
     }
 
     const accessToken = await this.getAccessToken();
@@ -131,12 +137,12 @@ export class GoogleDriveFileStorage implements IFileStorage {
     });
 
     if (!response.ok) {
-      throw new BadRequestError(await this.readGoogleError(response));
+      throw new FileStorageError(await this.readGoogleError(response));
     }
 
     const uploaded = (await response.json()) as GoogleDriveUploadResponse;
     if (!uploaded.id || !uploaded.webViewLink) {
-      throw new BadRequestError(
+      throw new FileStorageError(
         "Google Drive upload did not return a file link",
       );
     }
@@ -181,7 +187,7 @@ export class GoogleDriveFileStorage implements IFileStorage {
 
     const payload = (await response.json()) as GoogleTokenResponse;
     if (!response.ok || !payload.access_token) {
-      throw new BadRequestError(
+      throw new FileStorageError(
         payload.error_description ??
           payload.error ??
           "Google Drive authentication failed",
@@ -209,7 +215,7 @@ export class GoogleDriveFileStorage implements IFileStorage {
 
     const payload = (await response.json()) as GoogleTokenResponse;
     if (!response.ok || !payload.access_token) {
-      throw new BadRequestError(
+      throw new FileStorageError(
         payload.error_description ??
           payload.error ??
           "Google Drive OAuth authentication failed",
@@ -261,7 +267,7 @@ export class GoogleDriveFileStorage implements IFileStorage {
     });
 
     if (!response.ok) {
-      throw new BadRequestError(await this.readGoogleError(response));
+      throw new FileStorageError(await this.readGoogleError(response));
     }
   }
 

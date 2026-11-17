@@ -3,6 +3,9 @@ export const ErrorMessage = {
   INVALID_TOKEN: "Invalid token",
   SESSION_EXPIRED: "Token expired",
   UNAUTHORIZED: "Unauthorized",
+  FORBIDDEN: "Forbidden",
+  TOO_MANY_LOGIN_ATTEMPTS: "Too many login attempts. Please try again later.",
+  RECEIVER_NOT_ALLOWED: "Receiver is not allowed",
   INTERNAL_SERVER_ERROR: "Internal server error",
   SOMETHING_WENT_WRONG: "Something went wrong!",
 

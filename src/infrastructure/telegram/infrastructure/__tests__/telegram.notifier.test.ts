@@ -36,7 +36,7 @@ describe("TelegramNotifier", () => {
 
       await notifier.sendMessage("test message");
 
-      expect(mockSendMessage).toHaveBeenCalledWith("test-chat-id", "test message");
+      expect(mockSendMessage).toHaveBeenCalledWith("test-chat-id", "test message", undefined);
     });
 
     it("should handle sendMessage error gracefully", async () => {
@@ -48,7 +48,7 @@ describe("TelegramNotifier", () => {
 
       await notifier.sendMessage("test message");
 
-      expect(mockSendMessage).toHaveBeenCalledWith("test-chat-id", "test message");
+      expect(mockSendMessage).toHaveBeenCalledWith("test-chat-id", "test message", undefined);
       expect(consoleSpy).toHaveBeenCalledWith(
         "[TelegramNotifier] Failed to send message",
         expect.any(Error)

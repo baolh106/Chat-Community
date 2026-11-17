@@ -18,27 +18,34 @@ export class MessageAdminTelegramNotifier implements IToolNotifier {
   }
 
   async notifyNewMessage(payload: MessageCreatedPayload): Promise<void> {
-    const body = {
-      ...payload,
-      createdAt:
-        payload.createdAt instanceof Date
-          ? payload.createdAt.toISOString()
-          : payload.createdAt,
-    };
+    if (!this.telegramNotifier) {
+      return;
+    }
 
     const adminOnline = await this.sockets.hasOnlineAdmin();
-
-    if (!adminOnline && this.telegramNotifier) {
-      const { text, parseMode } = getTemplate("adminOffline", {
-        sender: body.sender,
-        receiver: body.receiver,
-        content: body.content ?? "<no content>",
-        createdAt: body.createdAt,
-        attachmentType: body.attachmentType,
-        fileName: body.fileName,
-        fileURL: body.fileURL,
-      });
-      await this.telegramNotifier.sendMessage(text, { parseMode });
+    if (adminOnline) {
+      return;
     }
+
+    const attachments = payload.attachments ?? [];
+    const first = attachments[0];
+    const createdAt =
+      payload.createdAt instanceof Date
+        ? payload.createdAt.toISOString()
+        : String(payload.createdAt);
+
+    const { text, parseMode } = getTemplate("adminOffline", {
+      sender: payload.sender,
+      receiver: payload.receiver,
+      content: payload.content ?? "<no content>",
+      createdAt,
+      attachmentType: first?.attachmentType ?? payload.attachmentType,
+      fileName:
+        attachments.length > 1
+          ? `${first?.fileName} (+${attachments.length - 1} file)`
+          : (first?.fileName ?? payload.fileName),
+      fileURL: first?.fileURL ?? payload.fileURL,
+    });
+    await this.telegramNotifier.sendMessage(text, { parseMode });
   }
 }

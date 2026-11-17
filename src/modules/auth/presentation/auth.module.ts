@@ -1,18 +1,40 @@
+import {
+  adminLoginMaxAttempts,
+  adminLoginWindowSeconds,
+} from "../../../config/env";
+import type { RedisClient } from "../../../infrastructure/redis";
 import type { IDbExecutor } from "../../../shared/database/db-executor.interface";
-import type { IEventBus } from "../../../infrastructure/event-bus/application/event-bus.interface";
+import { createRequireAuth } from "../../../shared/middleware/auth.middleware";
 import { AuthAPI } from "../api/auth";
 import { AuthApplication } from "../application/auth.application";
-// import { AdminInfrastructure } from "../infrastructure/surreal/admin.infra";
 import { JwtAuthService } from "../infrastructure/jwt-auth.service";
 import { AdminInfrastructure } from "../infrastructure/mongo/admin.infra";
+import { RedisLoginRateLimiter } from "../infrastructure/redis/login-rate-limiter";
+import { RedisRefreshTokenStore } from "../infrastructure/redis/refresh-token.store";
 
-export const authModule = (dbExecutor: IDbExecutor, eventBus: IEventBus) => {
-  const infra = new AdminInfrastructure(dbExecutor);
-  const jwtAuthService = new JwtAuthService();
-  const authApp = new AuthApplication(infra, jwtAuthService, eventBus);
-  const authApi = new AuthAPI(authApp);
+export const authModule = (dbExecutor: IDbExecutor, redis: RedisClient) => {
+  const adminInfra = new AdminInfrastructure(dbExecutor);
+  const tokenService = new JwtAuthService();
+  const refreshTokenStore = new RedisRefreshTokenStore(redis);
+  const loginLimiter = new RedisLoginRateLimiter(
+    redis,
+    adminLoginMaxAttempts,
+    adminLoginWindowSeconds,
+  );
+  const authApp = new AuthApplication(
+    adminInfra,
+    tokenService,
+    refreshTokenStore,
+    loginLimiter,
+  );
+  const requireAuth = createRequireAuth(tokenService);
+  const authApi = new AuthAPI(authApp, requireAuth);
+
   return {
     authApi,
     authApp,
+    tokenVerifier: tokenService,
+    requireAuth,
+    refreshTokenStore,
   };
 };

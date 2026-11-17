@@ -1,4 +1,4 @@
-import { MongoClient, Db, ClientSession } from "mongodb";
+import type { MongoClient, Db, ClientSession } from "mongodb";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { MongoDBConfig } from "./database";
 import type { IDbExecutor } from "../../shared/database/db-executor.interface";

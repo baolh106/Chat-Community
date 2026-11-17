@@ -1,83 +1,91 @@
-// src/shared/middleware/errorHandler.middleware.ts
-import type { Request, Response, NextFunction } from "express";
-import { AppError } from "../utils/error";
+import type { ErrorRequestHandler, NextFunction, Request, Response } from "express";
+import { ZodError } from "zod";
+import type { IErrorAlerter } from "../alerting/error-alerter.interface";
+import { ErrorCode } from "../constants/error.constant";
+import { AppError, NotFoundError } from "../utils/error";
 import { sendError } from "../utils/response";
 
-/**
- * Not found handler (404)
- */
 export const notFoundHandler = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction,
 ): void => {
-  const err = new AppError(
-    `Can't find ${req.originalUrl} on this server!`,
-    404,
-    "ROUTE_NOT_FOUND",
-  );
-  next(err);
+  next(new NotFoundError(`Can't find ${req.originalUrl} on this server!`));
 };
 
-/**
- * Global error handler
- */
-export const errorHandler = (
-  err: any,
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  let error = { ...err };
-  error.message = err.message;
-
-  if (err.message?.includes("Database index violation")) {
-    error = new AppError(
-      "Data already exists in the system!",
-      400,
-      "DUPLICATE_RECORD",
-    );
+export function normalizeError(err: unknown): AppError {
+  if (err instanceof AppError) {
+    return err;
   }
 
-  if (err.name === "JsonWebTokenError") {
-    error = new AppError(
-      "Invalid token. Please log in again!",
-      401,
-      "INVALID_TOKEN",
-    );
-  }
-  if (err.name === "TokenExpiredError") {
-    error = new AppError("Your session has expired!", 401, "SESSION_EXPIRED");
-  }
+  const e = (err ?? {}) as Record<string, any>;
+  const message = typeof e.message === "string" ? e.message : String(err);
 
-  if (err.name === "ZodError" || err.name === "ValidationError") {
-    const detail = err.errors
-      ? err.errors.map((i: any) => i.message).join(", ")
-      : err.message;
-    error = new AppError(
-      `Validation failed: ${detail}`,
-      400,
-      "VALIDATION_ERROR",
-    );
+  if (err instanceof ZodError) {
+    const detail = err.issues.map((issue) => issue.message).join(", ");
+    return new AppError(`Validation failed: ${detail}`, 400, "VALIDATION_ERROR");
   }
-
-  if (err.code === "ECONNREFUSED") {
-    error = new AppError(
+  if (e.name === "JsonWebTokenError") {
+    return new AppError("Invalid token. Please log in again!", 401, ErrorCode.INVALID_TOKEN);
+  }
+  if (e.name === "TokenExpiredError") {
+    return new AppError("Your session has expired!", 401, ErrorCode.SESSION_EXPIRED);
+  }
+  if (e.name === "MulterError") {
+    const status = e.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+    return new AppError(message, status, "UPLOAD_ERROR");
+  }
+  if (e.code === 11000) {
+    return new AppError("Data already exists in the system!", 409, "DUPLICATE_RECORD");
+  }
+  if (e.code === "ECONNREFUSED") {
+    return new AppError(
       "Service temporarily unavailable. Please try again later.",
       503,
-      "SERVICE_UNAVAILABLE",
+      ErrorCode.SERVICE_UNAVAILABLE,
       false,
     );
   }
 
-  if (!(error instanceof AppError)) {
-    error = new AppError(
-      error.message,
-      err.statusCode || 500,
-      err.errorCode || "INTERNAL_SERVER_ERROR",
-      false,
+  const status = Number(e.statusCode ?? e.status);
+  if (Number.isInteger(status) && status >= 400 && status < 500) {
+    return new AppError(
+      e.expose === false ? "Bad request" : message,
+      status,
+      ErrorCode.BAD_REQUEST,
     );
   }
 
-  sendError(error, req, res);
-};
+  const unknownError = new AppError(
+    message || "Internal server error",
+    500,
+    ErrorCode.INTERNAL_SERVER_ERROR,
+    false,
+  );
+  if (err instanceof Error && err.stack) {
+    unknownError.stack = err.stack;
+  }
+  return unknownError;
+}
+
+export function isCriticalError(error: AppError): boolean {
+  return !error.isOperational || error.statusCode >= 500;
+}
+
+export function createErrorHandler(alerter?: IErrorAlerter): ErrorRequestHandler {
+  return (err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    const error = normalizeError(err);
+
+    if (isCriticalError(error)) {
+      console.error("[SYSTEM_CRITICAL_ERROR]", err);
+      alerter?.alert({
+        message: error.message,
+        statusCode: error.statusCode,
+        component: "API Error Handler",
+        context: `${req.method} ${req.originalUrl}`,
+      });
+    }
+
+    sendError(error, res);
+  };
+}

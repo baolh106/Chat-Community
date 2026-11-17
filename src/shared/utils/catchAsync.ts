@@ -1,7 +1,11 @@
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 
-export const catchAsync = (fn: Function) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next).catch(next)); // Nếu lỗi, đẩy sang Error Middleware
+export const catchAsync = (
+  fn: (req: Request, res: Response, next: NextFunction) => unknown,
+): RequestHandler => {
+  return (req, res, next) => {
+    Promise.resolve()
+      .then(() => fn(req, res, next))
+      .catch(next);
   };
 };

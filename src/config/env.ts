@@ -85,11 +85,55 @@ export const uploadMaxFileSizeMb = Number(
   process.env.UPLOAD_MAX_FILE_SIZE_MB ?? 10,
 );
 
+export const uploadMaxFilesPerMessage = positiveInt(
+  process.env.UPLOAD_MAX_FILES_PER_MESSAGE,
+  5,
+);
+
+export const socketMaxHttpBufferBytes = (() => {
+  const fromEnv = Number(process.env.SOCKET_MAX_PAYLOAD_MB);
+  if (Number.isFinite(fromEnv) && fromEnv > 0) {
+    return Math.floor(fromEnv * 1024 * 1024);
+  }
+  return Math.ceil((uploadMaxFileSizeMb * 1024 * 1024 * 4) / 3) + 1024 * 1024;
+})();
+
 export const nodeEnv = process.env.NODE_ENV ?? "development";
+export const isProduction = nodeEnv === "production";
 export const corsOrigin = (process.env.CORS_ORIGIN ?? "").trim();
-export const metricsEnabled =
-  (process.env.METRICS_ENABLED ?? "true").toLowerCase() !== "false";
-export const metricsPath = (process.env.METRICS_PATH ?? "/metrics").trim();
+
+export const corsAllowedOrigins: string[] | false | "*" = isProduction
+  ? corsOrigin.length > 0
+    ? corsOrigin.split(",").map((item) => item.trim()).filter(Boolean)
+    : false
+  : "*";
+
+export const trustProxy: boolean | number | string = (() => {
+  const raw = (process.env.TRUST_PROXY ?? "").trim();
+  if (raw === "" || raw === "false") return false;
+  if (raw === "true") return true;
+  const asNumber = Number(raw);
+  return Number.isInteger(asNumber) ? asNumber : raw;
+})();
+
+export const mongoDnsServers = (process.env.MONGO_DNS_SERVERS ?? "")
+  .split(",")
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+export const adminLoginMaxAttempts = positiveInt(
+  process.env.ADMIN_LOGIN_MAX_ATTEMPTS,
+  5,
+);
+export const adminLoginWindowSeconds = positiveInt(
+  process.env.ADMIN_LOGIN_WINDOW_SECONDS,
+  15 * 60,
+);
+
+function positiveInt(raw: string | undefined, fallback: number): number {
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+}
 
 /** RSA Keys cho JWT RS256 signing. */
 export const privateKey = formatKey(process.env.PRIVATE_KEY);

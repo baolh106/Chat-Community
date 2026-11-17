@@ -1,103 +1,142 @@
-import { Db, type Sort } from "mongodb";
+import { randomUUID } from "node:crypto";
+import type { Db, Filter } from "mongodb";
 import { MongoDbContext } from "../../../../config/database/mongoDBContext";
 import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
-import type { 
-  IMessageOutboxRepository, 
-  MessageOutboxRecord 
+import type { PayloadMessage } from "../../domain/dtos/payloadMessage.dto";
+import {
+  MESSAGE_OUTBOX_EVENT_TYPE,
+  type IMessageOutboxRepository,
+  type MessageOutboxRecord,
 } from "../../domain/message-outbox.repository";
-import { MESSAGE_OUTBOX_EVENT_TYPE } from "../../domain/message-outbox.repository";
-import type { MessageCreate } from "../../application/dtos/param";
-import { internalEvents, OUTBOX_NOTIFY_EVENT } from "../../../../infrastructure/socket/application/internal-event-emitter";
-import { randomUUID } from "node:crypto";
+
+const COLLECTION = "message_outbox";
+const PROCESSED_RETENTION_SECONDS = 7 * 24 * 60 * 60;
+
+type OutboxDoc = Omit<MessageOutboxRecord, "id">;
 
 export class MessageOutboxRepo implements IMessageOutboxRepository {
   constructor(private readonly pool: IDbExecutor<Db>) {}
 
   async ensureReady(): Promise<void> {
     await this.pool.execute(async (db) => {
-      const collection = db.collection("message_outbox");
-      await collection.createIndex({ status: 1 });
-      await collection.createIndex({ createdAt: 1 });
+      const collection = db.collection<OutboxDoc>(COLLECTION);
       await collection.createIndex({ eventId: 1 }, { unique: true });
+      await collection.createIndex({ status: 1, nextAttemptAt: 1, createdAt: 1 });
+      await collection.createIndex({ status: 1, lockedUntil: 1 });
+      await collection.createIndex(
+        { processedAt: 1 },
+        {
+          name: "processed_ttl",
+          expireAfterSeconds: PROCESSED_RETENTION_SECONDS,
+          partialFilterExpression: { status: "processed" },
+        },
+      );
     });
   }
 
-  async createMessageCreated(payload: MessageCreate): Promise<void> {
-    const eventId = randomUUID();
+  async createMessageCreated(payload: PayloadMessage): Promise<void> {
     const now = new Date();
+    const doc: OutboxDoc = {
+      eventId: randomUUID(),
+      type: MESSAGE_OUTBOX_EVENT_TYPE.MESSAGE_CREATED,
+      payload: {
+        ...payload,
+        createdAt:
+          payload.createdAt instanceof Date
+            ? payload.createdAt
+            : new Date(payload.createdAt),
+      },
+      status: "pending",
+      attempts: 0,
+      createdAt: now,
+      updatedAt: now,
+      nextAttemptAt: now,
+      lockedUntil: null,
+      processedAt: null,
+      lastError: null,
+    };
 
     await this.pool.execute(async (db) => {
       const session = MongoDbContext.currentSession;
-      await db.collection("message_outbox").insertOne({
-        eventId,
-        type: MESSAGE_OUTBOX_EVENT_TYPE.MESSAGE_CREATED,
-        payload: {
-          ...payload,
-          createdAt: payload.createdAt instanceof Date 
-            ? payload.createdAt 
-            : new Date(payload.createdAt)
-        },
-        status: "pending",
-        attempts: 0,
-        createdAt: now,
-        updatedAt: now,
-        processedAt: null,
-        lastError: null,
-      }, session ? { session } : {})
-      .then(() => {
-        // Đánh thức Worker ngay lập tức cho MongoDB flow
-        internalEvents.emit(OUTBOX_NOTIFY_EVENT);
-      });
+      await db
+        .collection<OutboxDoc>(COLLECTION)
+        .insertOne(doc, session ? { session } : {});
     });
   }
 
-  async getPending(limit: number): Promise<MessageOutboxRecord[]> {
+  async claimPending(limit: number, lockMs: number): Promise<MessageOutboxRecord[]> {
     return await this.pool.execute(async (db) => {
-      const cursor = db.collection("message_outbox")
-        .find({ status: "pending" })
-        .sort({ createdAt: 1 } as Sort)
-        .limit(limit);
+      const collection = db.collection<OutboxDoc>(COLLECTION);
+      const claimed: MessageOutboxRecord[] = [];
 
-      const results = await cursor.toArray();
-      return results.map(doc => ({
-        ...doc,
-        id: doc._id.toString(),
-      })) as unknown as MessageOutboxRecord[];
+      for (let i = 0; i < limit; i++) {
+        const now = new Date();
+        const filter: Filter<OutboxDoc> = {
+          $or: [
+            { status: "pending", nextAttemptAt: { $lte: now } },
+            { status: "pending", nextAttemptAt: null },
+            { status: "processing", lockedUntil: { $lt: now } },
+          ],
+        };
+        const doc = await collection.findOneAndUpdate(
+          filter,
+          {
+            $set: {
+              status: "processing",
+              lockedUntil: new Date(now.getTime() + lockMs),
+              updatedAt: now,
+            },
+          },
+          { sort: { createdAt: 1 }, returnDocument: "after" },
+        );
+        if (!doc) break;
+
+        const { _id, ...rest } = doc;
+        claimed.push({
+          ...rest,
+          id: _id.toString(),
+          payload: {
+            ...rest.payload,
+            createdAt: new Date(rest.payload.createdAt),
+          },
+        });
+      }
+      return claimed;
     });
   }
 
   async markProcessed(eventId: string): Promise<void> {
     await this.pool.execute(async (db) => {
-      const session = MongoDbContext.currentSession;
-      await db.collection("message_outbox").updateOne(
+      const now = new Date();
+      await db.collection<OutboxDoc>(COLLECTION).updateOne(
         { eventId },
         {
           $set: {
             status: "processed",
-            processedAt: new Date(),
-            updatedAt: new Date(),
-            lastError: null
-          }
+            processedAt: now,
+            updatedAt: now,
+            lockedUntil: null,
+            lastError: null,
+          },
         },
-        session ? { session } : {}
       );
     });
   }
 
-  async markFailed(eventId: string, error: unknown): Promise<void> {
+  async markFailed(eventId: string, error: unknown, retryAt: Date | null): Promise<void> {
     await this.pool.execute(async (db) => {
-      const session = MongoDbContext.currentSession;
-      await db.collection("message_outbox").updateOne(
+      await db.collection<OutboxDoc>(COLLECTION).updateOne(
         { eventId },
         {
           $set: {
-            status: "pending",
+            status: retryAt ? "pending" : "failed",
+            nextAttemptAt: retryAt,
+            lockedUntil: null,
             updatedAt: new Date(),
-            lastError: error instanceof Error ? error.message : String(error)
+            lastError: error instanceof Error ? error.message : String(error),
           },
-          $inc: { attempts: 1 }
+          $inc: { attempts: 1 },
         },
-        session ? { session } : {}
       );
     });
   }

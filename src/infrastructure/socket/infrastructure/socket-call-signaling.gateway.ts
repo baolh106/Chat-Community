@@ -6,6 +6,7 @@ import { logSocketGateway } from "./socket-gateway.log";
 import type { IEventBusPublisher } from "../../event-bus/application/event-bus-publisher.interface";
 import { VideoCallStartedEvent } from "../../telegram/events/video-call-started.event";
 import { telegramChatId } from "../../../config/env";
+import { isAllowedReceiver } from "../../../shared/auth/auth-claims";
 
 type CallMediaType = "audio" | "video";
 type CallEndReason = "completed" | "cancelled" | "declined" | "busy" | "failed";
@@ -57,17 +58,6 @@ const getCallerId = (socket: Socket & { data: SocketSessionData }) => {
   }
 
   return socket.data.userId;
-};
-
-const isAllowedReceiver = (
-  callerRole: SocketSessionData["role"],
-  receiver: string,
-) => {
-  if (callerRole === "admin") {
-    return receiver !== "admin";
-  }
-
-  return receiver === "admin";
 };
 
 const emitCallError = (

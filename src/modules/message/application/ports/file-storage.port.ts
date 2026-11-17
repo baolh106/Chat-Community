@@ -1,4 +1,6 @@
-export type StoredFileType = "image" | "file";
+import type { StoredFileType } from "../../domain/entities/message-attachment";
+
+export type { StoredFileType };
 
 export type UploadFileInput = {
   buffer: Buffer;

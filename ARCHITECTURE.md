@@ -22,7 +22,7 @@
 
 ### 🚀 Real-time & Communication
 - **Websocket Engine**: Socket.IO
-- **Socket Scaling**: Redis Adapter (Pub/Sub)
+- **Socket Scaling**: Redis Adapter (Pub/Sub) — nhưng registry online, timer phiên và EventBus vẫn in-memory → **chỉ chạy 1 instance** (xem README)
 - **Real-time Patterns**: Gateway, Room-based registry
 - **External Integration**: Telegram Bot API
 

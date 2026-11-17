@@ -1,4 +1,5 @@
-import { RecordId, Surreal, Table, Uuid } from "surrealdb";
+import { RecordId, Table, Uuid } from "surrealdb";
+import type { Surreal } from "surrealdb";
 import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
 import { BadRequestError } from "../../../../shared/utils/error";
 import { ResponseMessage } from "../../constant/constant";
@@ -24,10 +25,10 @@ export class MessageRepo implements IMessageRepository {
   }
 
   async create(payload: PayloadMessage): Promise<void> {
-    const userId = new RecordId("messages", Uuid.v4());
+    const recordId = new RecordId("messages", payload.id ?? Uuid.v4().toString());
     const result = await this.pool.execute(async (db) => {
       return await db
-        .create<TMessage>(userId)
+        .create<TMessage>(recordId)
         .content({
           content: payload.content ?? null,
           imageURL: payload?.imageURL ?? null,
@@ -38,7 +39,9 @@ export class MessageRepo implements IMessageRepository {
           fileSize: payload?.fileSize ?? null,
           fileDriveId: payload?.fileDriveId ?? null,
           attachmentType: payload?.attachmentType ?? null,
-          createdAt: new Date(),
+          attachments: payload.attachments ?? null,
+          isUnsafe: payload.isUnsafe ?? null,
+          createdAt: payload.createdAt ?? new Date(),
           sender: payload.sender,
           receiver: payload.receiver,
           isRead: payload.isRead ?? false,
@@ -65,6 +68,8 @@ export class MessageRepo implements IMessageRepository {
             fileSize: m?.fileSize ?? null,
             fileDriveId: m?.fileDriveId ?? null,
             attachmentType: m?.attachmentType ?? null,
+            attachments: m.attachments ?? null,
+            isUnsafe: m.isUnsafe ?? null,
             createdAt: m.createdAt,
             sender: m.sender,
             receiver: m.receiver,

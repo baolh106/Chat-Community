@@ -1,11 +1,27 @@
-import { Db } from "mongodb";
 import { randomUUID } from "node:crypto";
+import type { Db } from "mongodb";
 import { MongoDbContext } from "../../../../config/database/mongoDBContext";
 import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
-import type { IMessageRepository } from "../../domain/mesage.repository";
-import type { PayloadMessage } from "../../domain/dtos/payloadMessage.dto";
 import { BadRequestError } from "../../../../shared/utils/error";
 import { ResponseMessage } from "../../constant/constant";
+import type { PayloadMessage } from "../../domain/dtos/payloadMessage.dto";
+import type { IMessageRepository } from "../../domain/mesage.repository";
+
+type MessageDoc = Omit<PayloadMessage, "id"> & {
+  _id: string;
+  isRead: boolean;
+};
+
+function toDoc(payload: PayloadMessage): MessageDoc {
+  const { id, ...rest } = payload;
+  return {
+    ...rest,
+    _id: id ?? randomUUID(),
+    content: payload.content ?? null,
+    createdAt: payload.createdAt ?? new Date(),
+    isRead: payload.isRead ?? false,
+  };
+}
 
 export class MessageRepo implements IMessageRepository {
   constructor(private readonly pool: IDbExecutor<Db>) {}
@@ -22,15 +38,10 @@ export class MessageRepo implements IMessageRepository {
   async create(payload: PayloadMessage): Promise<void> {
     await this.pool.execute(async (db) => {
       const session = MongoDbContext.currentSession;
-      const doc = {
-        _id: randomUUID(),
-        ...payload,
-        createdAt: payload.createdAt || new Date(),
-        isRead: payload.isRead ?? false,
-      };
+      const result = await db
+        .collection<MessageDoc>("messages")
+        .insertOne(toDoc(payload), session ? { session } : {});
 
-      const result = await db.collection("messages").insertOne(doc as any, session ? { session } : {});
-      
       if (!result.acknowledged) {
         throw new BadRequestError(ResponseMessage.CREATE_MESSAGE_FAILED);
       }
@@ -38,26 +49,12 @@ export class MessageRepo implements IMessageRepository {
   }
 
   async insertList(payload: PayloadMessage[]): Promise<void> {
+    if (payload.length === 0) return;
     await this.pool.execute(async (db) => {
       const session = MongoDbContext.currentSession;
-      const docs = payload.map(m => ({
-        _id: randomUUID(),
-        content: m.content ?? null,
-        imageURL: m?.imageURL ?? null,
-        fileURL: m?.fileURL ?? null,
-        fileDownloadURL: m?.fileDownloadURL ?? null,
-        fileName: m?.fileName ?? null,
-        fileMimeType: m?.fileMimeType ?? null,
-        fileSize: m?.fileSize ?? null,
-        fileDriveId: m?.fileDriveId ?? null,
-        attachmentType: m?.attachmentType ?? null,
-        createdAt: m.createdAt || new Date(),
-        sender: m.sender,
-        receiver: m.receiver,
-        isRead: m.isRead ?? false,
-      }));
-
-      await db.collection("messages").insertMany(docs as any, session ? { session } : {});
+      await db
+        .collection<MessageDoc>("messages")
+        .insertMany(payload.map(toDoc), session ? { session } : {});
     });
   }
 }

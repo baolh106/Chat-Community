@@ -1,118 +1,105 @@
-import type { StringValue } from "ms";
-import ms from "ms";
 import { ROLE } from "../../../common/constants/constant";
-import { jwtRefreshTokenExpiresIn } from "../../../config/env";
-import { redisClient } from "../../../infrastructure/redis";
+import {
+  ADMIN_PRINCIPAL,
+  principalIdOf,
+  type AuthClaims,
+} from "../../../shared/auth/auth-claims";
 import { ErrorMessage } from "../../../shared/constants/error.constant";
-import { BadRequestError } from "../../../shared/utils/error";
-import { CACHE_PREFIX } from "../constants/constant";
-import type { AdminInfrastructure } from "../infrastructure/surreal/admin.infra";
-import type { JwtAuthService } from "../infrastructure/jwt-auth.service";
+import {
+  BadRequestError,
+  TooManyRequestError,
+  UnauthorizedError,
+} from "../../../shared/utils/error";
+import { NICKNAME_MAX_LENGTH } from "../constants/constant";
+import type { IAdminInfrastructure } from "../domain/admin.infra";
+import type { IAuthApplication } from "./auth.application.interface";
 import type {
   TokenResponse,
   UserSessionStartRequest,
 } from "./dtos/user-session.dto";
-import type { IAuthApplication } from "./auth.application.interface";
-import { UserJoinedEvent } from "../domain/events/user-joined.event";
-import type { IEventBusPublisher } from "../../../infrastructure/event-bus/application/event-bus-publisher.interface";
-import type { IAdminInfrastructure } from "../domain/admin.infra";
+import type { ILoginRateLimiter } from "./ports/login-rate-limiter.port";
+import type { IRefreshTokenStore } from "./ports/refresh-token-store.port";
+import type { ITokenService } from "./ports/token.port";
 
 export class AuthApplication implements IAuthApplication {
   constructor(
-    private readonly adminInfra: IAdminInfrastructure,
-    private readonly jwtAuthService: JwtAuthService,
-    private readonly eventBus: IEventBusPublisher,
+    private readonly _adminInfra: IAdminInfrastructure,
+    private readonly _tokens: ITokenService,
+    private readonly _refreshStore: IRefreshTokenStore,
+    private readonly _loginLimiter: ILoginRateLimiter,
   ) {}
 
   async startUserSession(req: UserSessionStartRequest): Promise<TokenResponse> {
-    const nickname = req.nickname?.trim();
-    if (nickname && nickname.length > 15) {
+    const nickname = req.nickname?.trim() ?? "";
+    if (nickname.length === 0) {
+      throw new BadRequestError(ErrorMessage.NICKNAME_REQUIRED);
+    }
+    if (nickname.length > NICKNAME_MAX_LENGTH) {
       throw new BadRequestError(ErrorMessage.NICKNAME_TOO_LONG);
     }
+
     const userId = `${nickname}_${Date.now()}`;
-
-    const payload = {
-      role: ROLE.USER,
-      userId,
-      nickname,
-    };
-
-    const token = this.jwtAuthService.generateAllToken(payload);
-
-    // save refresh token to Redis with expiration
-    const expiresInSeconds = ms(jwtRefreshTokenExpiresIn as StringValue);
-    await redisClient.set(
-      `${CACHE_PREFIX.REFRESH_TOKEN}:${userId}`,
-      token.refreshToken,
-      expiresInSeconds,
-    );
-
-    return token;
+    return await this.issueAndStore({ role: ROLE.USER, userId, nickname }, userId);
   }
 
-  async endUserSession(userId: string): Promise<void> {
-    await redisClient.del(`${CACHE_PREFIX.REFRESH_TOKEN}:${userId}`);
+  async endUserSession(claims: AuthClaims): Promise<void> {
+    const principalId = principalIdOf(claims);
+    if (!principalId) {
+      throw new UnauthorizedError(ErrorMessage.UNAUTHORIZED);
+    }
+    await this._refreshStore.revoke(principalId);
   }
 
-  async loginAdmin(password: string): Promise<TokenResponse> {
+  async loginAdmin(password: string, clientKey: string): Promise<TokenResponse> {
     if (!password) {
       throw new BadRequestError(ErrorMessage.PASSWORD_REQUIRED);
     }
 
-    const isValid = await this.adminInfra.verifyPassword(password);
-    if (!isValid) {
-      throw new BadRequestError(ErrorMessage.UNAUTHORIZED);
+    const decision = await this._loginLimiter.consume(clientKey);
+    if (!decision.allowed) {
+      throw new TooManyRequestError(
+        `${ErrorMessage.TOO_MANY_LOGIN_ATTEMPTS} (retry after ${decision.retryAfterSeconds}s)`,
+      );
     }
 
-    const payload = { role: ROLE.ADMIN };
-    const token = this.jwtAuthService.generateAllToken(payload);
+    const isValid = await this._adminInfra.verifyPassword(password);
+    if (!isValid) {
+      throw new UnauthorizedError(ErrorMessage.UNAUTHORIZED);
+    }
 
-    // save refresh token to Redis with expiration
-    const expiresInSeconds = ms(jwtRefreshTokenExpiresIn as StringValue);
-    await redisClient.set(
-      `${CACHE_PREFIX.REFRESH_TOKEN}:admin`,
-      token.refreshToken,
-      expiresInSeconds,
-    );
-
-    return token;
+    await this._loginLimiter.reset(clientKey);
+    return await this.issueAndStore({ role: ROLE.ADMIN }, ADMIN_PRINCIPAL);
   }
 
   async refreshToken(refreshToken: string): Promise<TokenResponse> {
-    const isValid = await this.jwtAuthService.verifyToken(refreshToken);
-    if (!isValid) {
-      throw new BadRequestError(ErrorMessage.UNAUTHORIZED);
+    const result = this._tokens.verify(refreshToken, "refresh");
+    if (!result.ok) {
+      throw new UnauthorizedError(ErrorMessage.UNAUTHORIZED);
     }
 
-    const decoded = this.jwtAuthService.decodeToken(refreshToken);
-    if (!decoded || !decoded.role) {
-      throw new BadRequestError(ErrorMessage.UNAUTHORIZED);
+    const principalId = principalIdOf(result.claims);
+    if (!principalId) {
+      throw new UnauthorizedError(ErrorMessage.UNAUTHORIZED);
     }
 
-    const {
-      exp,
-      iat,
-      nbf,
-      jti,
-      aud,
-      iss,
-      ...payload
-    } = decoded as Record<string, unknown>;
-
-    const cacheKey =
-      payload.role === ROLE.ADMIN
-        ? `${CACHE_PREFIX.REFRESH_TOKEN}:admin`
-        : `${CACHE_PREFIX.REFRESH_TOKEN}:${payload.userId}`;
-
-    const storedToken = await redisClient.get(cacheKey);
+    const storedToken = await this._refreshStore.get(principalId);
     if (!storedToken || storedToken !== refreshToken) {
-      throw new BadRequestError(ErrorMessage.UNAUTHORIZED);
+      throw new UnauthorizedError(ErrorMessage.UNAUTHORIZED);
     }
 
-    const token = this.jwtAuthService.generateAllToken(payload);
-    const expiresInSeconds = ms(jwtRefreshTokenExpiresIn as StringValue);
-    await redisClient.set(cacheKey, token.refreshToken, expiresInSeconds);
+    return await this.issueAndStore(result.claims, principalId);
+  }
 
+  private async issueAndStore(
+    claims: AuthClaims,
+    principalId: string,
+  ): Promise<TokenResponse> {
+    const token = this._tokens.issue(claims);
+    await this._refreshStore.save(
+      principalId,
+      token.refreshToken,
+      this._tokens.refreshTokenTtlSeconds(),
+    );
     return token;
   }
 }

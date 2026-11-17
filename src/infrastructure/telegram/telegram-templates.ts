@@ -95,7 +95,7 @@ export const telegramTemplates: Record<string, MessageTemplate> = {
       const userId = escapeHtml(String(data.userId || "Unknown"));
       const message = escapeHtml(String(data.message || "<no text>"));
 
-      return `📩 <b>User Bot Message</b>\n\n👤 User: ${username}\n🆔 ID: <span class=\"tg-spoiler\">${userId}</span>\n💬 Message: ${message}`;
+      return `📩 <b>User Bot Message</b>\n\n👤 User: ${username}\n🆔 ID: <span class="tg-spoiler">${userId}</span>\n💬 Message: ${message}`;
     },
   },
 

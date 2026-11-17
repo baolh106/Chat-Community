@@ -1,7 +1,12 @@
-import type { StoredFileType } from "../../application/ports/file-storage.port";
+import type {
+  MessageAttachment,
+  StoredFileType,
+} from "../entities/message-attachment";
 
 export interface PayloadMessage {
+  id?: string | undefined;
   content: string | null;
+  attachments?: MessageAttachment[] | undefined;
   imageURL?: string | undefined;
   fileURL?: string | undefined;
   fileDownloadURL?: string | null | undefined;
@@ -14,4 +19,5 @@ export interface PayloadMessage {
   sender: string;
   receiver: string;
   isRead?: boolean | undefined;
+  isUnsafe?: boolean | undefined;
 }

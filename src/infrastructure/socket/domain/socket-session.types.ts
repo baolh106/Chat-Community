@@ -3,6 +3,7 @@ export type SocketSessionData = {
   userId?: string;
   /** userID = "nickname" + unique session suffix */
   nickname?: string;
+  joined?: boolean;
 };
 
 export type SocketPayload = {
