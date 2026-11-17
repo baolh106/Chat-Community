@@ -18,7 +18,8 @@
     "test:telegram:report": "tsx -r dotenv/config src/infrastructure/telegram/send-real-message.ts dailyReport",
     "db:init-admin": "tsx -r dotenv/config src/scripts/create-admin.ts",
     "db:init-mongo-admin": "tsx -r dotenv/config src/scripts/create-admin-mongo.ts",
-    "lint-fix": "eslint src --fix && prettier --write src"
+    "lint-fix": "eslint src --fix && prettier --write src",
+    "lint": "eslint src"
   },
   "repository": {
     "type": "git",
@@ -49,7 +50,8 @@
     "socket.io": "^4.8.3",
     "surrealdb": "^2.0.3",
     "telegraf": "^4.16.3",
-    "telegram": "^2.26.22"
+    "telegram": "^2.26.22",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -63,6 +65,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^25.5.0",
     "cross-env": "^7.0.3",
+    "esbuild": "^0.27.4",
     "eslint": "^10.1.0",
     "eslint-config-prettier": "^10.1.8",
     "jest": "^29.7.0",
