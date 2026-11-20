@@ -1,6 +1,9 @@
 import { Telegraf } from "telegraf";
 import { telegramBotToken, telegramChatId } from "../../../config/env";
 import type { ITelegramNotifier } from "../application/telegram.notifier.interface";
+import { createLogger } from "../../../shared/logging/logger";
+
+const logger = createLogger("telegram");
 
 export class NoopTelegramNotifier implements ITelegramNotifier {
   async sendMessage(): Promise<void> {
@@ -34,7 +37,7 @@ export class TelegramNotifier implements ITelegramNotifier {
         : undefined;
       await this.bot.telegram.sendMessage(this.chatId, text, sendOptions);
     } catch (error) {
-      console.error("[TelegramNotifier] Failed to send message", error);
+      logger.error("failed to send telegram message", { err: error });
     }
   }
 
@@ -64,7 +67,7 @@ export class TelegramNotifier implements ITelegramNotifier {
 
       await this.bot.telegram.sendPoll(roomId, question, options, pollOptions);
     } catch (error) {
-      console.error("[TelegramNotifier] Failed to send poll", error);
+      logger.error("failed to send telegram poll", { err: error });
     }
   }
 }

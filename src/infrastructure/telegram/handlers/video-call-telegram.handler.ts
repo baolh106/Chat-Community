@@ -3,6 +3,9 @@ import type { ITelegramNotifier } from "../application/telegram.notifier.interfa
 import { VIDEO_CALL_STARTED_TOPIC, type VideoCallStartedEvent } from "../events/video-call-started.event";
 import { getTemplate } from "../telegram-templates";
 import type { ITelegramCallService } from "../application/telegram-call.service.interface";
+import { createLogger } from "../../../shared/logging/logger";
+
+const logger = createLogger("telegram-call");
 
 export class VideoCallTelegramHandler
   implements IBusEventHandler<VideoCallStartedEvent>
@@ -26,7 +29,7 @@ export class VideoCallTelegramHandler
       try {
         await this._telegramNotifier.sendMessage(text, { parseMode });
       } catch (error) {
-        console.error("[VideoCallTelegramHandler] Text notify failed:", error);
+        logger.error("video call text notify failed", { err: error });
       }
     }
 
@@ -35,7 +38,7 @@ export class VideoCallTelegramHandler
       try {
         await this._callService.makeVoiceCall(adminTelegramId);
       } catch (error) {
-        console.error("[VideoCallTelegramHandler] VoIP Call failed:", error);
+        logger.error("video call voip failed", { err: error });
       }
     }
   }

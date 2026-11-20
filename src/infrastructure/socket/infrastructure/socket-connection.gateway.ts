@@ -6,7 +6,9 @@ import type { ISessionManager } from "../../../modules/message/application/sessi
 import type { IEventBusPublisher } from "../../event-bus/application/event-bus-publisher.interface";
 import { ADMIN_ROOM, userRoom } from "../domain/room-name";
 import type { SocketSessionData } from "../domain/socket-session.types";
-import { logSocketGateway } from "./socket-gateway.log";
+import { ADMIN_PRINCIPAL } from "../../../shared/auth/auth-claims";
+import { newRequestId, runWithLogContext } from "../../../shared/logging/log-context";
+import { logSocketGateway, socketLogger } from "./socket-gateway.log";
 import type { MessageSendHandler } from "./socket-message.handler";
 import type { SocketRoomJoinRegistry } from "./socket-room.registry";
 
@@ -30,7 +32,24 @@ export function registerSocketConnectionGateway(
   io.on("connection", (socket) => {
     const s = socket as Socket & { data: SocketSessionData };
 
-    logSocketGateway("client connected", { socketId: s.id });
+    s.use(([event], next) => {
+      runWithLogContext(
+        {
+          requestId: newRequestId(),
+          socketId: s.id,
+          userId: s.data.role === "admin" ? ADMIN_PRINCIPAL : s.data.userId,
+          role: s.data.role,
+          socketEvent: typeof event === "string" ? event : undefined,
+        },
+        () => next(),
+      );
+    });
+
+    logSocketGateway("client connected", {
+      socketId: s.id,
+      ...(s.data.userId !== undefined && { userId: s.data.userId }),
+      ...(s.data.role !== undefined && { role: s.data.role }),
+    });
 
     s.on("disconnect", (reason) => {
       logSocketGateway("socket disconnected", {
@@ -63,7 +82,7 @@ export function registerSocketConnectionGateway(
           try {
             history[uid] = await messageApp.getMessages(uid);
           } catch (error) {
-            console.error(`[SocketGateway] Failed to load history for user=${uid}`, error);
+            socketLogger.error("failed to load history", { err: error, historyUserId: uid });
             history[uid] = [];
           }
         }),
@@ -134,7 +153,7 @@ export function registerSocketConnectionGateway(
         void eventBus
           .publish(new UserJoinedEvent({ userId, totalUsers: totalOnline }))
           .catch((error) => {
-            console.error("[SocketGateway] Failed to publish UserJoinedEvent", error);
+            socketLogger.error("failed to publish UserJoinedEvent", { err: error });
           });
       }
 
@@ -156,7 +175,7 @@ export function registerSocketConnectionGateway(
 
     s.on("message:send", (payload: unknown) => {
       void onMessageSend(s, payload).catch((error) => {
-        console.error("[SocketGateway] Unhandled message:send error", error);
+        socketLogger.error("unhandled message:send error", { err: error });
       });
     });
   });

@@ -5,6 +5,9 @@ import type {
 import { withRetry } from "../../../shared/utils/retry";
 import type { ITelegramNotifier } from "../application/telegram.notifier.interface";
 import { getTemplate } from "../telegram-templates";
+import { createLogger } from "../../../shared/logging/logger";
+
+const logger = createLogger("telegram");
 
 const DEFAULT_THROTTLE_MS = 60_000;
 const MAX_TRACKED_KEYS = 500;
@@ -36,7 +39,7 @@ export class TelegramErrorAlerter implements IErrorAlerter {
 
     void withRetry(() => this._notifier.sendMessage(text, { parseMode }), 2, 500)
       .catch((error) => {
-        console.error("[TelegramErrorAlerter] Failed to send error alert:", error);
+        logger.error("failed to send error alert", { err: error });
       });
   }
 

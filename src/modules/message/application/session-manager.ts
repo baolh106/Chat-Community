@@ -2,6 +2,9 @@ import { MessageSession } from "../constant/constant";
 import type { IMessageSessionCache } from "./ports/message-session-cache.port";
 import type { ISessionRevoker } from "./ports/session-revoker.port";
 import type { ISessionManager } from "./session-manager.interface";
+import { createLogger } from "../../../shared/logging/logger";
+
+const logger = createLogger("session-manager");
 
 export class SessionManager implements ISessionManager {
   private readonly disconnectTimer = new Map<string, NodeJS.Timeout>();
@@ -37,10 +40,7 @@ export class SessionManager implements ISessionManager {
     ]);
     for (const result of results) {
       if (result.status === "rejected") {
-        console.error(
-          `[SessionManager] Failed to cleanup session for user=${userId}`,
-          result.reason,
-        );
+        logger.error("session cleanup failed", { err: result.reason, sessionUserId: userId });
       }
     }
   }

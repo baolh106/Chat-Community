@@ -4,6 +4,7 @@ import type {
   IMessageOutboxRepository,
   MessageOutboxRecord,
 } from "../../domain/message-outbox.repository";
+import { getLogContext } from "../../../../shared/logging/log-context";
 import { MessageOutboxWorker } from "../message-outbox.worker";
 import type { IMessageSessionCache } from "../ports/message-session-cache.port";
 
@@ -137,6 +138,22 @@ describe("MessageOutboxWorker", () => {
     repo.claimPending.mockRejectedValueOnce(new Error("mongo down"));
 
     await expect(worker.processPending()).resolves.toBeUndefined();
+  });
+
+  it("should restore the originating request context while publishing", async () => {
+    const { worker, bus } = setup([record({ requestId: "req-origin-01" })]);
+    let seen: Readonly<Record<string, unknown>> | undefined;
+    bus.publish.mockImplementationOnce(async () => {
+      seen = getLogContext();
+    });
+
+    await worker.processPending();
+
+    expect(seen).toEqual({
+      requestId: "req-origin-01",
+      eventId: "evt-1",
+      eventType: "message.created",
+    });
   });
 
   it("should cap backoff at maxBackoffMs", () => {

@@ -17,7 +17,20 @@ import {
 } from "./config/env";
 import { redisClient } from "./infrastructure/redis";
 import { telegramModule } from "./infrastructure/telegram/presentation/telegram.module";
+import { createLogger } from "./shared/logging/logger";
 import { App } from "./shared/server/server";
+
+const logger = createLogger("main");
+
+process.on("uncaughtException", (err) => {
+  logger.fatal("uncaught exception", { err });
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  logger.fatal("unhandled promise rejection", { err: reason });
+  process.exit(1);
+});
 
 async function main() {
   const telegram = telegramModule();
@@ -65,12 +78,12 @@ async function main() {
   app.start(Number(port));
 
   void telegram.telegramBotListener.start().catch((error) => {
-    console.error("[TelegramBotListener] Bot stopped with error:", error);
+    logger.error("telegram bot listener stopped", { err: error });
   });
-  console.log("Server started with database, socket and telegram modules");
+  logger.info("server started", { modules: ["database", "socket", "telegram"] });
 }
 
 main().catch((err) => {
-  console.error("Failed to start server:", err);
+  logger.fatal("failed to start server", { err });
   process.exit(1);
 });

@@ -100,7 +100,24 @@ export const socketMaxHttpBufferBytes = (() => {
 
 export const nodeEnv = process.env.NODE_ENV ?? "development";
 export const isProduction = nodeEnv === "production";
+export const isTest = nodeEnv === "test";
 export const corsOrigin = (process.env.CORS_ORIGIN ?? "").trim();
+
+export const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace", "silent"] as const;
+export type LogLevel = (typeof LOG_LEVELS)[number];
+
+export const logLevel: LogLevel = (() => {
+  if (isTest) return "silent";
+  const raw = (process.env.LOG_LEVEL ?? "").trim().toLowerCase();
+  const known = LOG_LEVELS.find((level) => level === raw);
+  if (known) return known;
+  return isProduction ? "info" : "debug";
+})();
+
+export const logPretty =
+  !isProduction && !isTest && (process.env.LOG_PRETTY ?? "").trim().toLowerCase() === "true";
+
+export const serviceName = (process.env.APP_NAME ?? "").trim() || "chat-community";
 
 export const corsAllowedOrigins: string[] | false | "*" = isProduction
   ? corsOrigin.length > 0

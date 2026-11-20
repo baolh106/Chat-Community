@@ -2,6 +2,9 @@ import { createClient } from "redis";
 import type { StringValue } from "ms";
 import { redisUrl } from "../config/env";
 import ms from "ms";
+import { createLogger } from "../shared/logging/logger";
+
+const logger = createLogger("redis");
 
 const INCR_WITH_TTL_SCRIPT = `
 local count = redis.call('INCR', KEYS[1])
@@ -24,7 +27,7 @@ export class RedisClient {
   ) {
     this.client = url ? createClient({ url }) : createClient();
     this.client.on("error", (error) => {
-      console.error("[RedisClient] Redis error:", error);
+      logger.error("redis error", { err: error });
     });
   }
 
@@ -143,11 +146,7 @@ export class RedisClient {
     try {
       return JSON.parse(payload) as T;
     } catch (error) {
-      console.error(
-        "[RedisClient] Failed to parse JSON from Redis key",
-        key,
-        error,
-      );
+      logger.warn("failed to parse json from redis", { err: error, key });
       return null;
     }
   }

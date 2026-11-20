@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Db, Filter } from "mongodb";
 import { MongoDbContext } from "../../../../config/database/mongoDBContext";
 import type { IDbExecutor } from "../../../../shared/database/db-executor.interface";
+import { currentRequestId } from "../../../../shared/logging/log-context";
 import type { PayloadMessage } from "../../domain/dtos/payloadMessage.dto";
 import {
   MESSAGE_OUTBOX_EVENT_TYPE,
@@ -54,6 +55,7 @@ export class MessageOutboxRepo implements IMessageOutboxRepository {
       lockedUntil: null,
       processedAt: null,
       lastError: null,
+      requestId: currentRequestId() ?? null,
     };
 
     await this.pool.execute(async (db) => {

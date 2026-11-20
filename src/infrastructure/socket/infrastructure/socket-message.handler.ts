@@ -11,6 +11,7 @@ import { ADMIN_PRINCIPAL, isAllowedReceiver } from "../../../shared/auth/auth-cl
 import { AppError } from "../../../shared/utils/error";
 import { ADMIN_ROOM, userRoom } from "../domain/room-name";
 import type { SocketSessionData } from "../domain/socket-session.types";
+import { socketLogger } from "./socket-gateway.log";
 
 export type MessageSocket = {
   data: SocketSessionData;
@@ -126,7 +127,7 @@ export function createMessageSendHandler(deps: MessageSendHandlerDeps): MessageS
       try {
         await deps.messageApp.create(message);
       } catch (error) {
-        console.error("[SocketGateway] Message persist failed:", error);
+        socketLogger.error("message persist failed", { err: error, tempId });
         socket.emit("message:error", {
           ok: false,
           tempId,
@@ -149,7 +150,7 @@ export function createMessageSendHandler(deps: MessageSendHandlerDeps): MessageS
       socket.to(targetRoom).emit("message:new", wire);
       socket.emit("message:send:ack", { ok: true, tempId, message: wire });
     } catch (error) {
-      console.error("[SocketGateway] message:send upload error:", error);
+      socketLogger.error("message upload failed", { err: error, tempId, fileCount: files.length });
       const reason = clientReason(error, SocketMessageError.UPLOAD_FAILED);
       socket.emit("message:upload:error", { tempId, reason });
       socket.emit("message:error", { ok: false, tempId, reason });

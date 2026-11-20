@@ -1,11 +1,13 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import {
   normalizeBearerToken,
+  principalIdOf,
   type AuthClaims,
   type AuthRole,
   type ITokenVerifier,
 } from "../auth/auth-claims";
 import { ErrorMessage } from "../constants/error.constant";
+import { addLogContext } from "../logging/log-context";
 import { ForbiddenError, UnauthorizedError } from "../utils/error";
 
 const AUTH_LOCALS_KEY = "auth";
@@ -31,6 +33,7 @@ export function createRequireAuth(verifier: ITokenVerifier): RequestHandler {
     }
 
     res.locals[AUTH_LOCALS_KEY] = result.claims;
+    addLogContext({ userId: principalIdOf(result.claims), role: result.claims.role });
     next();
   };
 }

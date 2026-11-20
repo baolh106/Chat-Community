@@ -2,8 +2,12 @@ import type { ErrorRequestHandler, NextFunction, Request, Response } from "expre
 import { ZodError } from "zod";
 import type { IErrorAlerter } from "../alerting/error-alerter.interface";
 import { ErrorCode } from "../constants/error.constant";
+import { createLogger } from "../logging/logger";
 import { AppError, NotFoundError } from "../utils/error";
 import { sendError } from "../utils/response";
+import { ERROR_LOCALS_KEY, type LoggedError } from "./request-logger.middleware";
+
+const logger = createLogger("error-handler");
 
 export const notFoundHandler = (
   req: Request,
@@ -76,8 +80,19 @@ export function createErrorHandler(alerter?: IErrorAlerter): ErrorRequestHandler
   return (err: unknown, req: Request, res: Response, _next: NextFunction) => {
     const error = normalizeError(err);
 
+    if (res.locals) {
+      const loggedError: LoggedError = { code: error.errorCode, message: error.message };
+      res.locals[ERROR_LOCALS_KEY] = loggedError;
+    }
+
     if (isCriticalError(error)) {
-      console.error("[SYSTEM_CRITICAL_ERROR]", err);
+      logger.error("critical error", {
+        err,
+        statusCode: error.statusCode,
+        errorCode: error.errorCode,
+        method: req.method,
+        url: req.originalUrl,
+      });
       alerter?.alert({
         message: error.message,
         statusCode: error.statusCode,
