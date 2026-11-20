@@ -112,3 +112,75 @@ Kiểm tra trước khi đẩy code (CI cũng chạy đúng các lệnh này):
 ```bash
 npm run type-check && npm run lint && npm test
 ```
+
+## 📈 Logging & Monitoring
+
+### Luồng
+
+```
+App (pino, JSON → stdout) → PM2 (~/.pm2/logs/<app>-out.log) → Alloy (tail file) → Loki → Grafana (dashboard + alert Telegram)
+```
+
+App **không gửi log qua mạng**. Nó chỉ ghi stdout, nên Loki, Alloy hay Grafana có chết thì luồng chat vẫn chạy bình thường.
+Stack monitoring chiếm khoảng 1GB RAM theo `mem_limit` (Loki 512m, Alloy 256m, Grafana 256m), dùng thực tế thường thấp hơn. Mức này vừa với VPS 4GB.
+
+### Log có cấu trúc
+
+- Mỗi dòng log là một JSON gồm `level`, `time`, `service`, `module`, `msg`, cùng context lấy tự động từ `AsyncLocalStorage`.
+- `requestId` được sinh cho mỗi HTTP request (nhận lại header `x-request-id` nếu client gửi hợp lệ, và luôn trả về trong response) và cho mỗi socket event.
+  `requestId` được lưu vào bản ghi outbox, nên khi `OutboxWorker` xử lý (kể cả retry) log vẫn mang đúng `requestId` gốc.
+  Với một `requestId`, ta lần được toàn bộ luồng: API/socket → DB → outbox → handler → Telegram/socket.
+- Mỗi request có đúng một dòng `request completed`: `method`, `path` (không kèm query string), `statusCode`, `durationMs`, `userId`, `errorCode`.
+- Các key nhạy cảm (`password`, `token`, `accessToken`, `refreshToken`, `authorization`, `cookie`, …) bị thay bằng `[REDACTED]`.
+- Biến môi trường: `LOG_LEVEL` (mặc định `info` ở production, `debug` ở dev) và `LOG_PRETTY=true` để log dễ đọc khi dev.
+- Code mới dùng `createLogger("<module>")` trong `src/shared/logging/logger.ts`, không dùng `console.*`. Lỗi truyền qua key `err`.
+
+### Cài trên VPS (một lần)
+
+```bash
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 50M
+pm2 set pm2-logrotate:retain 7
+pm2 set pm2-logrotate:compress true
+
+cd <thư mục clone repo>
+cp .env.example .env
+docker compose -f docker-compose.monitoring.yml up -d
+```
+
+Trong `.env` cần có: `GRAFANA_ADMIN_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (dùng cho alert), `PM2_APP_NAME`, `PM2_LOG_DIR`.
+Grafana chỉ bind `127.0.0.1`. Truy cập bằng SSH tunnel:
+
+```bash
+ssh -L 3001:localhost:3001 root@<vps>
+```
+
+Sau đó mở `http://localhost:3001`, vào dashboard **Chat Community / Overview**.
+
+### Tra cứu khi có sự cố
+
+| Cần biết | Cách làm |
+|---|---|
+| Một request/tin nhắn đi đâu, lỗi ở bước nào | Lấy `x-request-id` từ response (hoặc từ log lỗi), dán vào ô **Request ID** trên dashboard |
+| Lỗi gần đây | Chọn Level = `error`, `fatal` |
+| Outbox kẹt/dead-letter | Panel *Outbox worker*; Module = `outbox-worker` |
+| Process crash trước khi logger kịp chạy | Panel *Raw stderr* |
+| API chậm | Panel *HTTP latency* và *Slowest endpoints* |
+
+Ví dụ LogQL trong Explore:
+
+```logql
+{service="chat-community"} | json | requestId="<id>"
+{service="chat-community", level="error"} | json | line_format "{{.module}} {{.msg}} {{.err_message}}"
+sum by (path) (count_over_time({service="chat-community", module="http"} | json | statusCode >= 500 [1h]))
+```
+
+### Cảnh báo (gửi về Telegram)
+
+| Rule | Điều kiện |
+|---|---|
+| App fatal error | Có log `fatal` trong 5 phút (uncaught exception, khởi động thất bại) |
+| Error log spike | Hơn 10 log `error` trong 5 phút |
+| Outbox dead-letter | Có event hết lượt retry trong 10 phút |
+
+Log được giữ 14 ngày (`retention_period` trong `monitoring/loki/loki-config.yml`).

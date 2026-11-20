@@ -17,6 +17,9 @@ import type {
 } from "./ports/file-storage.port";
 import type { IImageDetectorService } from "./ports/image-detector.port";
 import type { IMessageSessionCache } from "./ports/message-session-cache.port";
+import { createLogger } from "../../../shared/logging/logger";
+
+const logger = createLogger("message");
 
 export type MessageApplicationOptions = {
   maxFileSizeBytes: number;
@@ -157,7 +160,7 @@ export class MessageApplication implements IMessageApplication {
         const result = await this._imageDetector.scanImage(stored.url);
         attachment.isUnsafe = Boolean(result.data?.is_toxic);
       } catch (error) {
-        console.error("[MessageApplication] Image detection service error:", error);
+        logger.error("image detection failed", { err: error });
       }
     }
     return attachment;

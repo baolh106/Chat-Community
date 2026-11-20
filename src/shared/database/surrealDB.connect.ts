@@ -1,6 +1,9 @@
 import { Surreal } from "surrealdb";
 import { withRetry } from "../utils/retry";
 import type { SurrealDBConfig } from "../../config/database/database";
+import { createLogger } from "../logging/logger";
+
+const logger = createLogger("surrealdb");
 
 export async function connectDB(config: SurrealDBConfig): Promise<Surreal> {
   const db = new Surreal();
@@ -18,7 +21,7 @@ export async function connectDB(config: SurrealDBConfig): Promise<Surreal> {
       });
     }
 
-    console.log("✅ Connected to SurrealDB successfully!");
+    logger.info("connected to surrealdb");
     return db;
   }, 5, 2000);
 }

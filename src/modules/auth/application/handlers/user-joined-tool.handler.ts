@@ -1,6 +1,9 @@
 import type { IBusEventHandler } from "../../../../infrastructure/event-bus/domain/bus-event-handler.interface";
 import { USER_JOINED_TOPIC, type UserJoinedEvent } from "../../domain/events/user-joined.event";
 import type { IToolNotifier } from "../ports/tool.port";
+import { createLogger } from "../../../../shared/logging/logger";
+
+const logger = createLogger("event-handler");
 
 export class UserJoinedToolHandler implements IBusEventHandler<UserJoinedEvent> {
   readonly handles = USER_JOINED_TOPIC;
@@ -9,9 +12,7 @@ export class UserJoinedToolHandler implements IBusEventHandler<UserJoinedEvent> 
 
   async handle(event: UserJoinedEvent): Promise<void> {
     const { userId } = event.payload;
-    console.log(
-      `[event-bus] : ${this._tool.getNameTool()} ${this.handles} ${userId} joined`,
-    );
+    logger.info("user joined", { tool: this._tool.getNameTool(), topic: this.handles, joinedUserId: userId });
     await this._tool.notifyUserJoined(event.payload);
   }
 }

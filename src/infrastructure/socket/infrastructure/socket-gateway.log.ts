@@ -1,6 +1,7 @@
+import { createLogger } from "../../../shared/logging/logger";
 import type { RoleType } from "../domain/socket-session.types";
 
-const PREFIX = "[SocketGateway]";
+export const socketLogger = createLogger("socket");
 
 export type SocketGatewayLogPayload = {
   socketId: string;
@@ -18,5 +19,5 @@ export function logSocketGateway(
   message: string,
   payload: SocketGatewayLogPayload,
 ): void {
-  console.log(`${PREFIX} ${message}`, payload);
+  socketLogger.info(message, payload);
 }

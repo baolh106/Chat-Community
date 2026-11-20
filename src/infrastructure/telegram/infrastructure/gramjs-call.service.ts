@@ -2,6 +2,9 @@ import { TelegramClient, Api } from "telegram";
 import { StringSession } from "telegram/sessions/index.js";
 import type { ITelegramCallService } from "../application/telegram-call.service.interface";
 import { telegramAppHash, telegramAppId, telegramHelperSession } from "../../../config/env";
+import { createLogger } from "../../../shared/logging/logger";
+
+const logger = createLogger("telegram-call");
 
 export class GramJsCallService implements ITelegramCallService {
   private client: TelegramClient;
@@ -48,9 +51,9 @@ export class GramJsCallService implements ITelegramCallService {
           }),
         })
       );
-      console.log(`[GramJsCallService] Triggered call to ${targetId}`);
+      logger.info("telegram call triggered", { targetId });
     } catch (error) {
-      console.error("[GramJsCallService] Failed to initiate call:", error);
+      logger.error("telegram call failed", { err: error });
     }
   }
 }

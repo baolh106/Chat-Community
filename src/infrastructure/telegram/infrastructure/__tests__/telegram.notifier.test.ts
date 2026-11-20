@@ -17,6 +17,20 @@ jest.mock("../../../../config/env", () => ({
   telegramChatId: "test-chat-id",
 }));
 
+const mockLoggerError = jest.fn();
+jest.mock("../../../../shared/logging/logger", () => {
+  const noop = () => undefined;
+  const logger = {
+    debug: noop,
+    info: noop,
+    warn: noop,
+    error: (...args: unknown[]) => mockLoggerError(...args),
+    fatal: noop,
+    child: () => logger,
+  };
+  return { createLogger: () => logger };
+});
+
 describe("TelegramNotifier", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -43,18 +57,12 @@ describe("TelegramNotifier", () => {
       mockSendMessage.mockRejectedValueOnce(new Error("Network error"));
       const notifier = new TelegramNotifier("test-token", "test-chat-id");
 
-      // Spy on console.error
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-
       await notifier.sendMessage("test message");
 
       expect(mockSendMessage).toHaveBeenCalledWith("test-chat-id", "test message", undefined);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "[TelegramNotifier] Failed to send message",
-        expect.any(Error)
-      );
-
-      consoleSpy.mockRestore();
+      expect(mockLoggerError).toHaveBeenCalledWith("failed to send telegram message", {
+        err: expect.any(Error),
+      });
     });
 
     it("should not send message if chatId is empty", async () => {

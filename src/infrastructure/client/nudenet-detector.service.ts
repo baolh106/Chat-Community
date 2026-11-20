@@ -4,6 +4,9 @@ import type {
   IImageDetectorService,
   ImageDetectorResponse,
 } from "../../modules/message/application/ports/image-detector.port";
+import { createLogger } from "../../shared/logging/logger";
+
+const logger = createLogger("image-detector");
 
 export class NudeNetDetectorService implements IImageDetectorService {
   private readonly client: AxiosInstance;
@@ -27,9 +30,9 @@ export class NudeNetDetectorService implements IImageDetectorService {
 
       return response.data;
     } catch (error: any) {
-      console.error("[NudeNetDetectorService] Error scanning image:", {
-        message: error.message,
-        response: error.response?.data,
+      logger.error("image scan failed", {
+        err: error,
+        status: error.response?.status,
       });
 
       throw new Error(

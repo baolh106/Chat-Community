@@ -8,6 +8,9 @@ import { GramJsCallService } from "../infrastructure/gramjs-call.service";
 import { TelegramErrorAlerter } from "../infrastructure/telegram-error.alerter";
 import { createTelegramNotifier } from "../infrastructure/telegram.notifier";
 import { TelegramBotListener } from "../telegram.bot";
+import { createLogger } from "../../../shared/logging/logger";
+
+const logger = createLogger("telegram");
 
 function hasCallServiceConfig(): boolean {
   return (
@@ -25,7 +28,7 @@ export function telegramModule() {
     ? new GramJsCallService()
     : undefined;
   if (!telegramCallService) {
-    console.warn("[TelegramModule] MTProto call service disabled (missing app id/hash/session).");
+    logger.warn("mtproto call service disabled", { reason: "missing app id/hash/session" });
   }
 
   return {

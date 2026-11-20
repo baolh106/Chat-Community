@@ -5,13 +5,19 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
-import morgan from "morgan";
-import { corsAllowedOrigins, isProduction, trustProxy } from "../../config/env";
+import { createLogger } from "../logging/logger";
+import { corsAllowedOrigins, trustProxy } from "../../config/env";
 import type { IErrorAlerter } from "../alerting/error-alerter.interface";
 import {
   createErrorHandler,
   notFoundHandler,
 } from "../middleware/errorHandler.middleware";
+import {
+  createRequestLogger,
+  REQUEST_ID_HEADER,
+} from "../middleware/request-logger.middleware";
+
+const logger = createLogger("app");
 
 type Cleanup = { name: string; fn: () => Promise<void> | void };
 
@@ -34,15 +40,16 @@ export class App {
     this.app = express();
     this.app.set("trust proxy", trustProxy);
 
+    this.app.use(createRequestLogger());
     this.app.use(
       cors({
         origin: corsAllowedOrigins,
         methods: ["GET", "POST", "PUT", "DELETE"],
+        exposedHeaders: [REQUEST_ID_HEADER],
       }),
     );
     this.app.use(helmet());
     this.app.use(compression());
-    this.app.use(morgan(isProduction ? "combined" : "dev"));
     this.app.use(express.json({ limit: "1mb" }));
     this.app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
@@ -79,7 +86,7 @@ export class App {
 
     const server = this.getHttpServer();
     server.listen(port, () => {
-      console.log(`SERVER RUNNING ON PORT ${port}`);
+      logger.info("server listening", { port });
     });
 
     for (const signal of SHUTDOWN_SIGNALS) {
@@ -93,11 +100,11 @@ export class App {
   async shutdown(reason: string): Promise<void> {
     if (this.shuttingDown) return;
     this.shuttingDown = true;
-    console.log(`[App] Shutting down (${reason})...`);
+    logger.info("shutting down", { reason });
 
     const timeoutMs = this.options.shutdownTimeoutMs ?? 10_000;
     const forceExit = setTimeout(() => {
-      console.error(`[App] Shutdown timed out after ${timeoutMs}ms, forcing exit`);
+      logger.error("shutdown timed out, forcing exit", { timeoutMs });
       process.exit(1);
     }, timeoutMs);
     forceExit.unref();
@@ -108,7 +115,7 @@ export class App {
         return;
       }
       this.server.close((err) => {
-        if (err) console.error("[App] Error closing HTTP server:", err);
+        if (err) logger.error("failed to close http server", { err });
         resolve();
       });
       this.server.closeIdleConnections?.();
@@ -118,14 +125,14 @@ export class App {
       try {
         await fn();
       } catch (error) {
-        console.error(`[App] Cleanup "${name}" failed:`, error);
+        logger.error("cleanup failed", { cleanup: name, err: error });
       }
     }
 
     await serverClosed;
 
     clearTimeout(forceExit);
-    console.log("[App] Shutdown complete");
+    logger.info("shutdown complete");
     process.exit(0);
   }
 }

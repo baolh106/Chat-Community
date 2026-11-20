@@ -5,7 +5,11 @@ import type {
   IMessageOutboxRepository,
   MessageOutboxRecord,
 } from "../domain/message-outbox.repository";
+import { runWithLogContext } from "../../../shared/logging/log-context";
+import { createLogger } from "../../../shared/logging/logger";
 import type { IMessageSessionCache } from "./ports/message-session-cache.port";
+
+const logger = createLogger("outbox-worker");
 
 export type MessageOutboxWorkerOptions = {
   intervalMs?: number;
@@ -51,7 +55,7 @@ export class MessageOutboxWorker {
     try {
       await this.outboxRepo.ensureReady();
     } catch (err) {
-      console.error("[MessageOutboxWorker] Failed to ensure repository readiness:", err);
+      logger.error("outbox repository readiness check failed", { err });
     }
 
     void this.processPending();
@@ -90,8 +94,12 @@ export class MessageOutboxWorker {
     try {
       events = await this.outboxRepo.claimPending(this.batchSize, this.lockMs);
     } catch (error) {
-      console.error("[MessageOutboxWorker] Failed to claim pending events:", error);
+      logger.error("failed to claim pending outbox events", { err: error });
       return;
+    }
+
+    if (events.length > 0) {
+      logger.debug("claimed outbox events", { count: events.length });
     }
 
     for (const event of events) {
@@ -100,10 +108,26 @@ export class MessageOutboxWorker {
   }
 
   private async processOne(event: MessageOutboxRecord): Promise<void> {
+    await runWithLogContext(
+      {
+        requestId: event.requestId ?? undefined,
+        eventId: event.eventId,
+        eventType: event.type,
+      },
+      () => this.processInContext(event),
+    );
+  }
+
+  private async processInContext(event: MessageOutboxRecord): Promise<void> {
+    const startedAt = Date.now();
     try {
       await this.eventBus.publish(new MessageCreatedEvent(event.payload, event.eventId));
       await this.appendCacheBestEffort(event);
       await this.outboxRepo.markProcessed(event.eventId);
+      logger.info("outbox event processed", {
+        attempt: (event.attempts ?? 0) + 1,
+        durationMs: Date.now() - startedAt,
+      });
     } catch (error) {
       const attempt = (event.attempts ?? 0) + 1;
       const isDead = attempt >= this.maxAttempts;
@@ -111,19 +135,23 @@ export class MessageOutboxWorker {
         ? null
         : new Date(this.now().getTime() + this.backoffMs(attempt));
 
-      console.error(
-        `[MessageOutboxWorker] Failed to process event=${event.eventId} attempt=${attempt}/${this.maxAttempts}` +
-          (isDead ? " → dead-letter" : ` → retry at ${retryAt!.toISOString()}`),
-        error,
-      );
+      const fields = {
+        err: error,
+        attempt,
+        maxAttempts: this.maxAttempts,
+        durationMs: Date.now() - startedAt,
+        ...(retryAt && { retryAt: retryAt.toISOString() }),
+      };
+      if (isDead) {
+        logger.error("outbox event dead-lettered", fields);
+      } else {
+        logger.warn("outbox event failed, will retry", fields);
+      }
 
       try {
         await this.outboxRepo.markFailed(event.eventId, error, retryAt);
       } catch (markError) {
-        console.error(
-          `[MessageOutboxWorker] Failed to record failure for event=${event.eventId}`,
-          markError,
-        );
+        logger.error("failed to record outbox failure", { err: markError });
       }
     }
   }
@@ -142,10 +170,7 @@ export class MessageOutboxWorker {
     try {
       await this.sessionCache.appendMessages(conversationKey, [message]);
     } catch (error) {
-      console.error(
-        `[MessageOutboxWorker] Failed to append Redis session cache for conversation=${conversationKey}`,
-        error,
-      );
+      logger.warn("failed to append redis session cache", { err: error, conversationKey });
     }
   }
 }

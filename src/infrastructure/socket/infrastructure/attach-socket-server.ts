@@ -8,6 +8,7 @@ import { createSocketAuthMiddleware } from "../middleware/socket.middleware";
 import { applyRedisSocketAdapter } from "./redis.adapter";
 import { registerSocketCallSignalingGateway } from "./socket-call-signaling.gateway";
 import { registerSocketConnectionGateway } from "./socket-connection.gateway";
+import { socketLogger } from "./socket-gateway.log";
 import { createMessageSendHandler } from "./socket-message.handler";
 import { SocketRoomJoinRegistry } from "./socket-room.registry";
 
@@ -52,7 +53,7 @@ export async function attachSocketServer(
         ? options.redisKey
         : "socket.io";
     disposeRedis = await applyRedisSocketAdapter(io, options.redisUrl, key);
-    console.log("[SocketGateway] redis adapter enabled", { key });
+    socketLogger.info("redis adapter enabled", { key });
   }
 
   const roomRegistry = new SocketRoomJoinRegistry();

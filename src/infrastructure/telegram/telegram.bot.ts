@@ -2,6 +2,9 @@ import { Telegraf } from "telegraf";
 import { telegramBotToken } from "../../config/env";
 import type { ITelegramNotifier } from "./application/telegram.notifier.interface";
 import { getTemplate } from "./telegram-templates";
+import { createLogger } from "../../shared/logging/logger";
+
+const logger = createLogger("telegram-bot");
 
 export class TelegramBotListener {
   private bot: Telegraf;
@@ -17,18 +20,18 @@ export class TelegramBotListener {
     try {
       this.bot.stop(reason);
     } catch (error) {
-      console.error("[TelegramBotListener] Failed to stop bot:", error);
+      logger.error("failed to stop bot", { err: error });
     }
   }
 
   async start(): Promise<void> {
     if (!this.telegramNotifier) {
-      console.warn("[TelegramBotListener] No telegram notifier available, skipping bot listener.");
+      logger.warn("no telegram notifier available, skipping bot listener");
       return;
     }
 
     if (!telegramBotToken) {
-      console.warn("[TelegramBotListener] TELEGRAM_BOT_TOKEN is not configured.");
+      logger.warn("TELEGRAM_BOT_TOKEN is not configured");
       return;
     }
 
@@ -72,9 +75,7 @@ When you send /poll_boardgame, a poll will be created with predefined voting opt
         const userId = String(ctx.from?.id ?? "unknown");
         const username = ctx.from?.username || ctx.from?.first_name || "Unknown User";
 
-        console.log(
-          `[TelegramBotListener] /voting command from ${username} (${userId}) in chat ${ctx.chat.id}`
-        );
+        logger.info("voting command received", { username, telegramUserId: userId, chatId: ctx.chat.id });
 
         // Get next month of current month for poll question
         const currentMonth = new Date().getMonth() + 1; // getMonth is 0-indexed
@@ -106,7 +107,7 @@ When you send /poll_boardgame, a poll will be created with predefined voting opt
         }
       } catch (error) {
         const username = ctx.from?.username || ctx.from?.first_name || "Unknown User";
-        console.error(`[TelegramBotListener] Failed to create voting poll by ${username}:`, error);
+        logger.error("failed to create voting poll", { err: error, username });
         await ctx.reply("❌ Failed to create poll. Please try again.");
       }
     });
@@ -117,9 +118,7 @@ When you send /poll_boardgame, a poll will be created with predefined voting opt
         const userId = String(ctx.from?.id ?? "unknown");
         const username = ctx.from?.username || ctx.from?.first_name || "Unknown User";
 
-        console.log(
-          `[TelegramBotListener] /voting command from ${username} (${userId}) in chat ${ctx.chat.id}`
-        );
+        logger.info("voting command received", { username, telegramUserId: userId, chatId: ctx.chat.id });
 
         // Create a voting poll directly in the chat
         const pollQuestion = `Điểm danh tuần này nha!`;
@@ -148,7 +147,7 @@ When you send /poll_boardgame, a poll will be created with predefined voting opt
         }
       } catch (error) {
         const username = ctx.from?.username || ctx.from?.first_name || "Unknown User";
-        console.error(`[TelegramBotListener] Failed to create voting poll by ${username}:`, error);
+        logger.error("failed to create voting poll", { err: error, username });
         await ctx.reply("❌ Failed to create poll. Please try again.");
       }
     });
@@ -174,18 +173,15 @@ When you send /poll_boardgame, a poll will be created with predefined voting opt
           message: String(messageText),
         });
 
-        console.log(`[TelegramBotListener] Received private message from ${username} (${userId})`);
+        logger.info("private message received", { username, telegramUserId: userId });
         await notifier.sendMessage(text, { parseMode });
       } catch (error) {
-        console.error(
-          "[TelegramBotListener] Failed to forward bot message to admin:",
-          error
-        );
+        logger.error("failed to forward bot message to admin", { err: error });
       }
     });
 
     this.launched = true;
-    console.log("[TelegramBotListener] starting long polling...");
+    logger.info("starting long polling");
     try {
       await this.bot.launch();
     } finally {

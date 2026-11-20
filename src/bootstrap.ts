@@ -26,6 +26,7 @@ import { messageModule } from "./modules/message/presentation/message.module";
 import type { IDbExecutor } from "./shared/database/db-executor.interface";
 import { connectMongoClient } from "./shared/database/mongoDB.connect";
 import { connectDB } from "./shared/database/surrealDB.connect";
+import { createLogger } from "./shared/logging/logger";
 
 export async function setupSurrealDB() {
   const db = await connectDB(surrealConfig);
@@ -86,7 +87,7 @@ async function ensureDatabaseReady(repos: Array<{ ensureReady(): Promise<void> }
   try {
     await Promise.all(repos.map((repo) => repo.ensureReady()));
   } catch (error) {
-    console.error("[Bootstrap] Error ensuring database readiness:", error);
+    createLogger("bootstrap").error("database readiness check failed", { err: error });
     throw error;
   }
 }

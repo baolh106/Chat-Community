@@ -22,6 +22,7 @@ export type MessageOutboxRecord = {
   lockedUntil?: Date | null;
   processedAt?: Date | null;
   lastError?: string | null;
+  requestId?: string | null;
 };
 
 export interface IMessageOutboxRepository {

@@ -3,7 +3,10 @@ import type * as NotifierModule from "../telegram.notifier";
 function loadWithEnv(env: { telegramBotToken: string; telegramChatId: string }) {
   let mod: typeof NotifierModule | undefined;
   jest.isolateModules(() => {
-    jest.doMock("../../../../config/env", () => env);
+    jest.doMock("../../../../config/env", () => ({
+      ...jest.requireActual("../../../../config/env"),
+      ...env,
+    }));
     jest.doMock("telegraf", () => ({ Telegraf: jest.fn(() => ({ telegram: {} })) }));
     mod = jest.requireActual("../telegram.notifier");
   });

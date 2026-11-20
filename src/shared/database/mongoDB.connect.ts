@@ -3,13 +3,14 @@ import dns from "node:dns";
 import { withRetry } from "../utils/retry";
 import type { MongoDBConfig } from "../../config/database/database";
 import { mongoDnsServers } from "../../config/env";
+import { createLogger } from "../logging/logger";
+
+const logger = createLogger("mongodb");
 
 function applyDnsOverride(): void {
   if (mongoDnsServers.length === 0) return;
   dns.setServers(mongoDnsServers);
-  console.warn(
-    `[MongoDB] Process-wide DNS servers overridden: ${mongoDnsServers.join(", ")}`,
-  );
+  logger.warn("process-wide dns servers overridden", { dnsServers: mongoDnsServers });
 }
 
 function buildConnectionString(config: MongoDBConfig): string {
@@ -44,7 +45,7 @@ export async function connectMongoClient(config: MongoDBConfig): Promise<MongoCl
     await client.connect();
     // Ping thử để chắc chắn kết nối khả dụng
     await client.db("admin").command({ ping: 1 });
-    console.log("✅ Connected to MongoDB Atlas successfully!");
+    logger.info("connected to mongodb");
     return client;
   }, 5, 2000);
 }
