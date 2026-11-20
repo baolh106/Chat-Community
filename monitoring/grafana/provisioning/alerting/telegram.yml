@@ -1,0 +1,144 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: telegram
+    receivers:
+      - uid: telegram-admin
+        type: telegram
+        settings:
+          bottoken: ${GRAFANA_TELEGRAM_BOT_TOKEN}
+          chatid: "${GRAFANA_TELEGRAM_CHAT_ID}"
+          parse_mode: HTML
+        disableResolveMessage: false
+
+policies:
+  - orgId: 1
+    receiver: telegram
+    group_by: ["grafana_folder", "alertname"]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+
+groups:
+  - orgId: 1
+    name: chat-community
+    folder: Chat Community
+    interval: 1m
+    rules:
+      - uid: cc-fatal
+        title: App fatal error
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              refId: A
+              queryType: range
+              expr: 'sum(count_over_time({service="chat-community", level="fatal"}[5m]))'
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+        noDataState: OK
+        execErrState: Error
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Chat-Community gặp lỗi fatal (process có thể đã restart)"
+          description: "{{ humanize $$values.B.Value }} log fatal trong 5 phút qua. Xem dashboard Chat Community / Overview, lọc level=fatal."
+
+      - uid: cc-error-spike
+        title: Error log spike
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              refId: A
+              queryType: range
+              expr: 'sum(count_over_time({service="chat-community", level="error"}[5m]))'
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [10]
+        noDataState: OK
+        execErrState: Error
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chat-Community: số log lỗi tăng cao"
+          description: "{{ humanize $$values.B.Value }} log level=error trong 5 phút qua (ngưỡng 10)."
+
+      - uid: cc-outbox-dead-letter
+        title: Outbox dead-letter
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: loki
+            model:
+              refId: A
+              queryType: range
+              expr: 'sum(count_over_time({service="chat-community", module="outbox-worker"} |= "dead-lettered" [10m]))'
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+        noDataState: OK
+        execErrState: Error
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chat-Community: outbox event bị dead-letter"
+          description: "{{ humanize $$values.B.Value }} event đã hết lượt retry trong 10 phút qua. Kiểm tra collection message_outbox (status=failed) và log module=outbox-worker."

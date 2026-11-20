@@ -1,0 +1,72 @@
+name: chat-community-monitoring
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  loki:
+    image: grafana/loki:3.5.3
+    container_name: chat-community-loki
+    command: ["-config.file=/etc/loki/config.yml"]
+    environment:
+      GOMEMLIMIT: 380MiB
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    mem_limit: 512m
+    restart: unless-stopped
+    logging: *default-logging
+
+  alloy:
+    image: grafana/alloy:v1.10.1
+    container_name: chat-community-alloy
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      PM2_APP_NAME: "${PM2_APP_NAME:-community-backend}"
+      GOMEMLIMIT: 180MiB
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - "${PM2_LOG_DIR:-/root/.pm2/logs}:/var/log/pm2:ro"
+      - alloy-data:/var/lib/alloy/data
+    depends_on:
+      - loki
+    mem_limit: 256m
+    restart: unless-stopped
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: chat-community-grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GRAFANA_TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required for alerting}"
+      GRAFANA_TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID is required for alerting}"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - loki
+    mem_limit: 256m
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  loki-data:
+  alloy-data:
+  grafana-data:
